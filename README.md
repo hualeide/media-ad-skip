@@ -1,8 +1,68 @@
 # Media Ad Skip
 
-B站 + 抖音**网页版**片内/信息流广告跳过工具。提供 **Chrome/Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
+[![Version](https://img.shields.io/badge/version-1.5.15-blue.svg)](./extension/manifest.json)
+[![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
+[![Sites](https://img.shields.io/badge/Sites-Bilibili%20%2B%20Douyin-green.svg)](#-作用)
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
-> 当前版本 **1.5.15** · **仅在 B站 / 抖音页面注入** · [隐私说明](extension/PRIVACY.md) · [商店文案](extension/STORE.md)
+B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome / Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
+
+> **仅在 B站、抖音页面注入**；其它网站不会运行。隐私与上架文案见 [`extension/PRIVACY.md`](extension/PRIVACY.md)、[`extension/STORE.md`](extension/STORE.md)。
+
+---
+
+## 🚀 极速上手（与「Codex 认证助手」相同：开发者模式本地加载）
+
+安装方式与 [Codex 认证助手](https://github.com/zhishile/codex-auth-helper) 一类开源扩展一致：**不要去应用商店搜，用「加载已解压的扩展程序」**。
+
+### 1. 拿到代码
+
+任选其一：
+
+- **GitHub**：打开 [本仓库](https://github.com/hualeide/media-ad-skip) → 绿色 **Code** → **Download ZIP** → 解压到任意目录  
+- **Git**：`git clone https://github.com/hualeide/media-ad-skip.git`
+
+解压后确认存在：`media-ad-skip/extension/manifest.json`（后面要选的是 **`extension` 这一层**，不是仓库根目录）。
+
+### 2. 开发者模式安装（本地加载）
+
+1. 打开 Chrome / Edge，地址栏输入并回车：
+   - Chrome：`chrome://extensions/`
+   - Edge：`edge://extensions/`
+2. 右上角打开 **「开发者模式」**（Developer mode）。
+3. 点击 **「加载已解压的扩展程序」**（Load unpacked）。
+4. 选中本仓库里的 **`extension`** 文件夹（里面直接有 `manifest.json`、`background.js`、`content/` 等）。
+5. 列表里出现 **Media Ad Skip**，状态为已启用即可。
+6. 点浏览器工具栏 **拼图** 图标，找到 **Media Ad Skip** → **固定**，方便以后点。
+
+> ⚠️ **常见翻车**：选成了仓库根目录 `media-ad-skip/`（没有直接的 `manifest.json`）会加载失败。必须选 **`extension/`**。
+
+### 3. 开始用
+
+1. 打开 [B站视频页](https://www.bilibili.com/) 或 [抖音网页版](https://www.douyin.com/)（**只有这两个站会注入脚本**）。
+2. 点扩展图标：可 **立即跳过 / 撤销 / 本集不跳 / 标错了 / 重新分析**。
+3. 详细开关（品牌词、黑名单、软跳秒数、SponsorBlock、信息流划走等）在扩展的 **「选项」** 页。
+4. 跳过成功后右下角会出现 toast，可撤销。
+
+### 4. 改代码 / 更新后怎么刷新
+
+1. 若你改的是油猴源 `media-ad-skip.user.js`，先在仓库根目录执行：
+   ```bash
+   node scripts/build-extension-content.mjs
+   ```
+2. 回到 `chrome://extensions/`，在 Media Ad Skip 卡片上点 **「重新加载」**。
+3. **关掉旧的 B站 / 抖音标签再新开**（或弹窗里点「刷新当前页」），否则可能还在跑旧脚本。
+
+### 5. 装不上时对照表
+
+| 现象 | 处理 |
+|------|------|
+| 加载报错 / 找不到 manifest | 选的目录不对 → 选 `extension/` |
+| 扩展在，但视频页没反应 | 确认是 `bilibili.com` / `douyin.com`；重载扩展后新开标签 |
+| 抖音标签卡死、崩 | 选项里先关掉「信息流广告 / 直播卡」；尽量进具体视频页再测 |
+| 权限变更后异常 | 扩展页重新加载；必要时移除后按上面步骤再加载一次 |
+
+---
 
 ## 作用
 
@@ -54,23 +114,13 @@ B站 + 抖音**网页版**片内/信息流广告跳过工具。提供 **Chrome/E
 | 设置 | `chrome.storage` + 选项页/弹窗 | `GM_*` + 菜单 |
 | 构建 | 改油猴后执行下方 build，再重载扩展 | 直接改脚本 |
 
-内容脚本由油猴源生成，避免两套逻辑分叉：
-
 ```bash
 node scripts/build-extension-content.mjs
 ```
 
-## 安装扩展（推荐）
-
-1. 打开 `chrome://extensions`（Edge：`edge://extensions`）
-2. 打开「开发者模式」
-3. 「加载已解压的扩展程序」→ 选择本仓库的 [`extension/`](extension/) 目录
-4. 打开任意 B站 / 抖音视频页；图标弹窗可快速操作，详细项在「选项」
-5. 改代码后：扩展页「重新加载」→ **关掉旧标签再开**（或弹窗「刷新当前页」）
-
 ## 油猴（可选）
 
-安装 Tampermonkey 后导入 [`media-ad-skip.user.js`](media-ad-skip.user.js)。
+若你更习惯脚本管理器：安装 Tampermonkey 后导入 [`media-ad-skip.user.js`](media-ad-skip.user.js)。**推荐仍用扩展**（设置页更完整）。
 
 ## 自测
 
