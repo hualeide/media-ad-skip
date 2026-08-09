@@ -10,6 +10,9 @@
 // @downloadURL  https://raw.githubusercontent.com/hualeide/media-ad-skip/master/media-ad-skip.user.js
 // @match        *://www.bilibili.com/video/*
 // @match        *://www.bilibili.com/list/*
+// @match        *://www.bilibili.com/watchlater/*
+// @match        *://www.bilibili.com/bangumi/*
+// @match        *://m.bilibili.com/video/*
 // @match        *://www.douyin.com/*
 // @match        *://www.iesdouyin.com/*
 // @icon         https://www.bilibili.com/favicon.ico

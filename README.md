@@ -1,13 +1,13 @@
 # Media Ad Skip
 
-[![Version](https://img.shields.io/badge/version-1.5.20-blue.svg)](./extension/manifest.json)
+[![Version](https://img.shields.io/badge/version-1.5.24-blue.svg)](./extension/manifest.json)
 [![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Sites](https://img.shields.io/badge/Sites-Bilibili%20%2B%20Douyin-green.svg)](#-作用)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome / Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
-> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.20**。隐私与上架文案见 [`extension/PRIVACY.md`](extension/PRIVACY.md)、[`extension/STORE.md`](extension/STORE.md)。
+> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.24**。隐私与上架文案见 [`extension/PRIVACY.md`](extension/PRIVACY.md)、[`extension/STORE.md`](extension/STORE.md)。
 
 ---
 
