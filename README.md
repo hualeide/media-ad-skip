@@ -7,18 +7,16 @@
 
 B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome / Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
-> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.24**。隐私与上架文案见 [`extension/PRIVACY.md`](extension/PRIVACY.md)、[`extension/STORE.md`](extension/STORE.md)。
+> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.24**。隐私说明见 [`extension/PRIVACY.md`](extension/PRIVACY.md)。
 
 ---
 
 ## 自动更新（怎么「一次下载长期受益」）
 
-Chrome **不允许**「加载已解压」的扩展像商店插件那样静默自动升级。可选路径：
+本地加载的扩展**不会**静默自动升级。当前路径：
 
 | 方式 | 体验 | 说明 |
 |------|------|------|
-| **上架 Edge 扩展商店（推荐）** | 真正自动更新 | **免费注册**；见 [`extension/STORE.md`](extension/STORE.md) |
-| **上架 Chrome 商店** | 真正自动更新 | 要交 $5，国内支付常不好使，可暂缓 |
 | **本扩展内置检查** | 半自动 | 每天查 GitHub；有新版本图标角标 **↑** |
 | **git clone 安装** | 半自动 | `git pull` → 扩展页「重新加载」 |
 | **油猴** | 自动（脚本管理器） | 已写 `@updateURL`，Tampermonkey 会抽查更新 |
