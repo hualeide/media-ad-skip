@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.31
+// @version      1.5.32
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.31') return;
-  window.__MAS_VER__ = '1.5.31';
+  if (window.__MAS_VER__ === '1.5.32') return;
+  window.__MAS_VER__ = '1.5.32';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -1550,13 +1550,55 @@
 
   /** 看角标/短标签，比整卡文本更稳 */
   function looksLikeAdBadgeText(t) {
-    const s = String(t || '').replace(/\s+/g, ' ').trim();
+    const s = String(t || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
     if (!s || s.length > 12) return false;
-    if (s === '广告' || s === '广告.' || s === '广告。') return true;
+    if (s === '广告' || s === '广告.' || s === '广告。' || s === '廣告') return true;
     if (/^广告$/.test(s)) return true;
-    // 「广告」夹在短标里：如「广告 ·」「AD」「推广」
     if (/^(广告|AD|Ad|推广|赞助)$/i.test(s)) return true;
-    if (s.length <= 6 && /广告/.test(s) && !/直播|关注|点赞|评论|分享/.test(s)) return true;
+    if (s.length <= 6 && /广告|廣告/.test(s) && !/直播|关注|点赞|评论|分享/.test(s)) return true;
+    return false;
+  }
+
+  /** @昵称旁灰标「广告」常在作者浮层，不在 video slide 内 */
+  function detectAdBadgeInViewport() {
+    const vh = window.innerHeight || 800;
+    const vw = window.innerWidth || 1200;
+    // 桌面版作者区大约在左下 / 中下偏左
+    const points = [
+      [0.18, 0.78], [0.22, 0.82], [0.28, 0.8], [0.32, 0.76],
+      [0.2, 0.72], [0.25, 0.86], [0.35, 0.84], [0.15, 0.7],
+      [0.4, 0.78], [0.45, 0.82],
+    ];
+    for (const [fx, fy] of points) {
+      let el = null;
+      try {
+        el = document.elementFromPoint(Math.floor(vw * fx), Math.floor(vh * fy));
+      } catch { /* ignore */ }
+      let n = el;
+      for (let d = 0; d < 8 && n; d += 1) {
+        const raw = String(n.innerText || n.textContent || '').replace(/\u00a0/g, ' ');
+        const t = raw.replace(/\s+/g, ' ').trim().slice(0, 80);
+        if (looksLikeAdBadgeText(t)) return true;
+        // 「@xxx 广告」或同行灰标
+        if (/广告|廣告/.test(t) && t.length <= 40 && !/直播间|进入直播/.test(t)) {
+          if (/^@?.{0,24}广告/.test(t) || /\s广告(\s|$)/.test(t) || t.endsWith('广告')) return true;
+        }
+        n = n.parentElement;
+      }
+    }
+    const nodes = document.querySelectorAll('span, a, label, i, em, p, div');
+    const max = Math.min(nodes.length, 260);
+    for (let i = 0; i < max; i += 1) {
+      const el = nodes[i];
+      if ((el.children?.length || 0) > 4) continue;
+      const t = String(el.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!looksLikeAdBadgeText(t)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      if (r.top < vh * 0.45 || r.bottom > vh || r.left < 0 || r.right > vw) continue;
+      // 作者条多在左半屏中下部
+      if (r.left < vw * 0.72) return true;
+    }
     return false;
   }
 
@@ -1695,7 +1737,7 @@
     const text = card.text || douyinCurrentCardText();
     const liveHit = card.live || isFeedLive(text) || detectLivePreviewInViewport();
     const shopHit = card.shop || isFeedShop(text);
-    const adHit = card.ad || isFeedAdLike(text);
+    const adHit = card.ad || isFeedAdLike(text) || detectAdBadgeInViewport();
     let shouldSkip = false;
     let reason = '';
     // 广告 / 购物 / 直播分开
@@ -1708,8 +1750,12 @@
     } else if (cfg.douyinFeedLive && liveHit) {
       shouldSkip = true;
       reason = '直播卡';
+    } else if (!cfg.douyinFeedAd && adHit) {
+      if (!douyinFeedTick._adHintAt || now - douyinFeedTick._adHintAt > 10000) {
+        douyinFeedTick._adHintAt = now;
+        setStatus('广告卡 · 请打开「划走广告/带货」');
+      }
     } else if (!cfg.douyinFeedLive && liveHit) {
-      // 让用户知道是开关问题，不是「坏了」
       if (!douyinFeedTick._liveHintAt || now - douyinFeedTick._liveHintAt > 10000) {
         douyinFeedTick._liveHintAt = now;
         setStatus('直播卡 · 请打开「划走直播」');
