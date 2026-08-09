@@ -18,9 +18,9 @@ async function getCfg() {
   return { ...DEFAULTS, ...(cfg || {}) };
 }
 
-async function patch(key, value) {
+async function patch(partial) {
   const cfg = await getCfg();
-  await chrome.storage.sync.set({ cfg: { ...cfg, [key]: value } });
+  await chrome.storage.sync.set({ cfg: { ...cfg, ...partial } });
 }
 
 function isSupportedUrl(url) {
@@ -59,29 +59,17 @@ async function refreshStatus() {
 async function load() {
   const c = await getCfg();
   document.getElementById('autoSkip').checked = c.autoSkip !== false;
-  document.getElementById('useSponsorBlock').checked = c.useSponsorBlock !== false;
-  document.getElementById('douyinInVideo').checked = c.douyinInVideo !== false;
-  document.getElementById('douyinFeedAd').checked = c.douyinFeedAd !== false;
-  document.getElementById('douyinFeedLive').checked = c.douyinFeedLive !== false;
-  const soft = Math.max(15, Math.min(90, Number(c.softOralSkipSec) || 35));
-  document.getElementById('skipNow').textContent = `立即跳过 / 约${soft}秒`;
+  // 划走：信息流广告 + 直播卡共用一个开关
+  document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive);
   await refreshStatus();
 }
 
 document.getElementById('autoSkip').addEventListener('change', (e) => {
-  patch('autoSkip', e.target.checked);
+  patch({ autoSkip: e.target.checked });
 });
-document.getElementById('useSponsorBlock').addEventListener('change', (e) => {
-  patch('useSponsorBlock', e.target.checked);
-});
-document.getElementById('douyinInVideo').addEventListener('change', (e) => {
-  patch('douyinInVideo', e.target.checked);
-});
-document.getElementById('douyinFeedAd').addEventListener('change', (e) => {
-  patch('douyinFeedAd', e.target.checked);
-});
-document.getElementById('douyinFeedLive').addEventListener('change', (e) => {
-  patch('douyinFeedLive', e.target.checked);
+document.getElementById('feedSwipe').addEventListener('change', (e) => {
+  const on = e.target.checked;
+  patch({ douyinFeedAd: on, douyinFeedLive: on });
 });
 
 async function run(cmd) {
@@ -89,7 +77,6 @@ async function run(cmd) {
   setStatus(res?.status || res?.error || '完成');
 }
 
-document.getElementById('skipNow').addEventListener('click', () => run('skipNow'));
 document.getElementById('reanalyze').addEventListener('click', () => run('reanalyze'));
 document.getElementById('undo').addEventListener('click', () => run('undo'));
 document.getElementById('block').addEventListener('click', () => run('block'));
@@ -97,7 +84,7 @@ document.getElementById('wrong').addEventListener('click', () => run('wrong'));
 document.getElementById('openOptions').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
-document.getElementById('reloadTab')?.addEventListener('click', async () => {
+document.getElementById('reloadTab').addEventListener('click', async () => {
   const tab = await activeTab();
   if (tab?.id) chrome.tabs.reload(tab.id);
   setStatus('已刷新，请稍候再打开插件');
