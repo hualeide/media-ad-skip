@@ -1,9 +1,13 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.15
+// @version      1.5.19
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
+// @homepageURL  https://github.com/hualeide/media-ad-skip
+// @supportURL   https://github.com/hualeide/media-ad-skip/issues
+// @updateURL    https://raw.githubusercontent.com/hualeide/media-ad-skip/master/media-ad-skip.user.js
+// @downloadURL  https://raw.githubusercontent.com/hualeide/media-ad-skip/master/media-ad-skip.user.js
 // @match        *://www.bilibili.com/video/*
 // @match        *://www.bilibili.com/list/*
 // @match        *://www.douyin.com/*
@@ -22,8 +26,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.17') return;
-  window.__MAS_VER__ = '1.5.17';
+  if (window.__MAS_VER__ === '1.5.19') return;
+  window.__MAS_VER__ = '1.5.19';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');

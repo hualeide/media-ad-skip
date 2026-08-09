@@ -156,12 +156,50 @@
       color: var(--secondary);
       line-height: 1.35;
     }
+    .update {
+      display: none;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(10, 132, 255, 0.18);
+      border: 0.5px solid rgba(10, 132, 255, 0.45);
+    }
+    .update.show { display: block; }
+    .update strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .update p {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--secondary);
+    }
+    .update .row-btns {
+      display: flex;
+      gap: 8px;
+    }
+    .update button {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>Media Ad Skip</h1>
     <p id="status">读取中…</p>
+  </div>
+
+  <div id="updateBox" class="update" role="status">
+    <strong id="updateTitle">发现新版本</strong>
+    <p id="updateDesc"></p>
+    <div class="row-btns">
+      <button type="button" id="updateOpen" class="primary">去更新</button>
+      <button type="button" id="updateCheck">检查更新</button>
+    </div>
   </div>
 
   <div class="group">
@@ -197,7 +235,7 @@
     <button type="button" id="wrong">标错了</button>
     <button type="button" id="openOptions">打开设置页</button>
   </div>
-  <p class="footnote">品牌词 / SponsorBlock 等在设置页。改完一般立刻生效，不必刷新页面。</p>
+  <p class="footnote">品牌词 / SponsorBlock 等在设置页。无更新提示时也可点设置页「检查更新」。</p>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -142,4 +142,45 @@ document.getElementById('clearFeedback').addEventListener('click', async () => {
   showToast('反馈已清空');
 });
 
-load();
+function renderUpdateStatus(meta) {
+  const el = document.getElementById('updateStatus');
+  if (!el) return;
+  const local = chrome.runtime.getManifest().version;
+  if (!meta) {
+    el.textContent = `当前 v${local}`;
+    return;
+  }
+  if (meta.hasUpdate) {
+    el.textContent = `发现新版本 v${meta.latestVersion}（当前 v${meta.localVersion || local}）`;
+  } else if (meta.error) {
+    el.textContent = `检查失败：${meta.error}`;
+  } else {
+    el.textContent = `已是最新 v${meta.localVersion || local}`;
+  }
+}
+
+document.getElementById('checkUpdate')?.addEventListener('click', async () => {
+  showToast('正在检查…');
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'MAS_CHECK_UPDATE', force: true });
+    renderUpdateStatus(res?.meta);
+    showToast(res?.meta?.hasUpdate ? '有新版本' : (res?.meta?.error ? '检查失败' : '已是最新'));
+  } catch (e) {
+    showToast('检查失败');
+  }
+});
+document.getElementById('openRelease')?.addEventListener('click', async () => {
+  const res = await chrome.runtime.sendMessage({ type: 'MAS_GET_UPDATE' });
+  const url = res?.meta?.url || 'https://github.com/hualeide/media-ad-skip/releases';
+  chrome.tabs.create({ url });
+});
+
+load().then(async () => {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'MAS_GET_UPDATE' });
+    renderUpdateStatus(res?.meta);
+    chrome.runtime.sendMessage({ type: 'MAS_CHECK_UPDATE', force: false }).then((r) => {
+      if (r?.ok) renderUpdateStatus(r.meta);
+    });
+  } catch { /* ignore */ }
+});

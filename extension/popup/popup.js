@@ -121,13 +121,6 @@ async function refreshStatus() {
   }
 }
 
-async function load() {
-  const c = await getCfg();
-  document.getElementById('autoSkip').checked = c.autoSkip !== false;
-  document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive);
-  await refreshStatus();
-}
-
 document.getElementById('autoSkip').addEventListener('change', (e) => {
   patch({ autoSkip: e.target.checked });
 });
@@ -181,5 +174,61 @@ document.getElementById('wrong').addEventListener('click', () => run('wrong'));
 document.getElementById('openOptions').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+let updateMeta = null;
+
+function renderUpdate(meta) {
+  const box = document.getElementById('updateBox');
+  const title = document.getElementById('updateTitle');
+  const desc = document.getElementById('updateDesc');
+  updateMeta = meta || null;
+  if (meta?.hasUpdate) {
+    box.classList.add('show');
+    title.textContent = `有新版本 ${meta.latestVersion}`;
+    desc.textContent = `当前 ${meta.localVersion || chrome.runtime.getManifest().version} → 下载 ZIP，覆盖 extension 文件夹后在扩展页点「重新加载」。`;
+  } else if (meta && !meta.error) {
+    box.classList.remove('show');
+  } else if (meta?.error) {
+    box.classList.add('show');
+    title.textContent = '检查更新失败';
+    desc.textContent = meta.error;
+  } else {
+    box.classList.remove('show');
+  }
+}
+
+async function refreshUpdate(force) {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: force ? 'MAS_CHECK_UPDATE' : 'MAS_GET_UPDATE', force: !!force });
+    if (force && res?.ok) renderUpdate(res.meta);
+    else if (!force && res?.ok) renderUpdate(res.meta);
+    if (force && res?.ok && !res.meta?.hasUpdate) {
+      setStatus(res.meta?.error ? `更新检查失败：${res.meta.error}` : `已是最新（${res.meta?.localVersion || ''}）`);
+      if (!res.meta?.hasUpdate && !res.meta?.error) {
+        document.getElementById('updateBox').classList.add('show');
+        document.getElementById('updateTitle').textContent = '已是最新';
+        document.getElementById('updateDesc').textContent = `当前版本 ${res.meta?.localVersion || chrome.runtime.getManifest().version}`;
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+document.getElementById('updateCheck').addEventListener('click', () => refreshUpdate(true));
+document.getElementById('updateOpen').addEventListener('click', () => {
+  const url = updateMeta?.zip || updateMeta?.url || 'https://github.com/hualeide/media-ad-skip/releases';
+  chrome.tabs.create({ url });
+});
+
+async function load() {
+  const c = await getCfg();
+  document.getElementById('autoSkip').checked = c.autoSkip !== false;
+  document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive);
+  await refreshStatus();
+  await refreshUpdate(false);
+  // 打开弹窗时轻量检查（后台有缓存）
+  chrome.runtime.sendMessage({ type: 'MAS_CHECK_UPDATE', force: false }).then((res) => {
+    if (res?.ok) renderUpdate(res.meta);
+  }).catch(() => {});
+}
 
 load();

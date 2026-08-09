@@ -76,6 +76,17 @@
       </div>
     </section>
 
+    <section>
+      <h2>更新</h2>
+      <p class="hint">「加载已解压」无法像商店扩展那样静默自动升级。本扩展会每天检查 GitHub；有新版本时图标角标显示 ↑。</p>
+      <p id="updateStatus" class="hint">检查中…</p>
+      <div class="row-actions">
+        <button type="button" id="checkUpdate" class="secondary">检查更新</button>
+        <button type="button" id="openRelease" class="secondary">打开发布页</button>
+      </div>
+      <p class="hint">更新步骤：下载 ZIP → 覆盖本地 <code>extension</code> 文件夹 → 扩展页点「重新加载」。若用 git：<code>git pull</code> 后同样重新加载。</p>
+    </section>
+
     <footer>
       <div class="row-actions">
         <button type="button" id="save">保存设置</button>

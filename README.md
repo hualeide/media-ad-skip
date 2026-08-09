@@ -1,13 +1,35 @@
 # Media Ad Skip
 
-[![Version](https://img.shields.io/badge/version-1.5.17-blue.svg)](./extension/manifest.json)
+[![Version](https://img.shields.io/badge/version-1.5.19-blue.svg)](./extension/manifest.json)
 [![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Sites](https://img.shields.io/badge/Sites-Bilibili%20%2B%20Douyin-green.svg)](#-作用)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome / Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
-> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.17**。隐私与上架文案见 [`extension/PRIVACY.md`](extension/PRIVACY.md)、[`extension/STORE.md`](extension/STORE.md)。
+> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.19**。隐私与上架文案见 [`extension/PRIVACY.md`](extension/PRIVACY.md)、[`extension/STORE.md`](extension/STORE.md)。
+
+---
+
+## 自动更新（怎么「一次下载长期受益」）
+
+Chrome **不允许**「加载已解压」的扩展像商店插件那样静默自动升级。可选路径：
+
+| 方式 | 体验 | 说明 |
+|------|------|------|
+| **上架 Chrome / Edge 商店** | 真正自动更新 | 一次安装后由商店推送；见 [`extension/STORE.md`](extension/STORE.md) |
+| **本扩展内置检查（已做）** | 半自动 | 每天查 GitHub；有新版本图标角标 **↑**，弹窗/设置页可「去更新」 |
+| **git clone 安装** | 半自动 | `git pull` → 扩展页「重新加载」 |
+| **油猴** | 自动（脚本管理器） | 已写 `@updateURL`，Tampermonkey 会抽查更新 |
+
+**已解压用户更新步骤：**
+
+1. 弹窗点「去更新」或打开 [Releases](https://github.com/hualeide/media-ad-skip/releases)
+2. 下载 ZIP，用新文件**覆盖**本地的 `extension` 目录（或整仓覆盖）
+3. `chrome://extensions` → Media Ad Skip → **重新加载**
+4. 关掉旧的 B站/抖音标签再开
+
+发布者打版：`node scripts/pack-extension.mjs`，再用 `gh release create …` 挂上 zip。
 
 ---
 

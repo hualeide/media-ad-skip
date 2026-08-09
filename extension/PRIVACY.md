@@ -16,6 +16,7 @@
 | `bsbsb.top` | SponsorBlock 社区广告分段 |
 | `api.bilibili.com` / `comment.bilibili.com` / `*.hdslb.com` | 视频信息、弹幕、字幕 |
 | `www.douyin.com` | 看点/视频详情（仅你打开的页面上下文） |
+| `api.github.com` | 检查扩展是否有新版本（不上传账号） |
 
 ## 权限
 
