@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.23
+// @version      1.5.24
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -26,8 +26,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.23') return;
-  window.__MAS_VER__ = '1.5.23';
+  if (window.__MAS_VER__ === '1.5.24') return;
+  window.__MAS_VER__ = '1.5.24';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -1457,6 +1457,15 @@
       '[class*="ad-tag"], [class*="AdTag"], [class*="advert"], [class*="Advert"],'
       + '[data-e2e*="ad"], [data-e2e*="Ad"], [class*="isAd"], [class*="is-ad"]',
     )) out.ad = true;
+    // 商品卡 / 锚点购物组件
+    if (root.querySelector(
+      '[class*="commerce"], [class*="Commerce"], [class*="shop-card"], [class*="ShopCard"],'
+      + '[class*="product"], [class*="Product"], [data-e2e*="shop"], [data-e2e*="goods"],'
+      + '[class*="anchor"], [class*="Anchor"]',
+    )) {
+      // 有商品组件时再确认文案，减少误伤
+      if (/查看详情|购物|购买|专卖|旗舰|商品|到手价|券后/.test(out.text)) out.shop = true;
+    }
 
     // 强信号：进入直播间 CTA（勿用头像「直播」角标）
     if (isStrongLiveRoomText(out.text)) out.live = true;
@@ -1471,8 +1480,8 @@
       if (t === '广告' || t === '广告.' || /^广告$/.test(t)) out.ad = true;
       // 「直播」二字常见于头像角标 → 忽略；只要完整进房文案
       if (isStrongLiveRoomText(t) && !isNearAvatarOrFollow(el)) out.live = true;
-      // 「购物 | 商品名」带货入口
-      if (/^购物\s*[|｜]/.test(t) || /^(立即购买|商品橱窗|去购买|购物)$/.test(t)) out.shop = true;
+      // 「购物 | 商品名」/「查看详情」商品卡
+      if (/^购物\s*[|｜]/.test(t) || /^(立即购买|商品橱窗|去购买|购物|查看详情)$/.test(t)) out.shop = true;
       if (out.ad && out.live && out.shop) break;
     }
     return out;
@@ -1492,8 +1501,8 @@
   }
 
   function isFeedShop(text) {
-    // 「购物 | xxx」是抖音带货条，不要要求同时出现「广告」字样
-    return /购物\s*[|｜]|商品橱窗|立即购买|去购买|小黄车|橱窗/.test(text || '');
+    // 购物条、商品卡「查看详情」、店铺号等
+    return /购物\s*[|｜]|商品橱窗|立即购买|去购买|查看详情|小黄车|橱窗|专卖店|旗舰店|官方店|进入店铺|同款商品/.test(text || '');
   }
 
   let lastFeedSkipAt = 0;

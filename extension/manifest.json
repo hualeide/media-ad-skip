@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Media Ad Skip",
-  "version": "1.5.23",
+  "version": "1.5.24",
   "description": "仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、看点广告。",
   "icons": {
     "16": "icons/icon16.png",
