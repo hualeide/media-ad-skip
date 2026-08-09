@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.32
+// @version      1.5.33
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.32') return;
-  window.__MAS_VER__ = '1.5.32';
+  if (window.__MAS_VER__ === '1.5.33') return;
+  window.__MAS_VER__ = '1.5.33';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -233,7 +233,7 @@
     const style = document.createElement('style');
     style.id = 'mas-toast-style';
     style.textContent = `
-      #mas-undo-toast,#mas-skip-toast{
+      #mas-undo-toast,#mas-skip-toast,#mas-feed-toast{
         position:fixed;right:20px;bottom:24px;z-index:2147483646;
         padding:12px 14px;border-radius:12px;
         font:600 13px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
@@ -242,19 +242,19 @@
         background:#1c1c1e;border:1px solid #3a3a3c;
         box-shadow:0 8px 24px rgba(0,0,0,.35);
       }
-      #mas-undo-toast .mas-toast-title,#mas-skip-toast .mas-toast-title{font-weight:600}
-      #mas-undo-toast .mas-toast-sub,#mas-skip-toast .mas-toast-sub{
+      #mas-undo-toast .mas-toast-title,#mas-skip-toast .mas-toast-title,#mas-feed-toast .mas-toast-title{font-weight:600}
+      #mas-undo-toast .mas-toast-sub,#mas-skip-toast .mas-toast-sub,#mas-feed-toast .mas-toast-sub{
         margin-top:4px;font-weight:500;font-size:12px;opacity:.78;
       }
-      #mas-undo-toast .mas-toast-actions,#mas-skip-toast .mas-toast-actions{
+      #mas-undo-toast .mas-toast-actions,#mas-skip-toast .mas-toast-actions,#mas-feed-toast .mas-toast-actions{
         margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;
       }
-      #mas-undo-toast .mas-btn,#mas-skip-toast .mas-btn{
+      #mas-undo-toast .mas-btn,#mas-skip-toast .mas-btn,#mas-feed-toast .mas-btn{
         appearance:none;-webkit-appearance:none;cursor:pointer;border:0;border-radius:8px;
         padding:6px 12px;font:600 12px/1.2 inherit;
       }
-      #mas-undo-toast .mas-btn-primary,#mas-skip-toast .mas-btn-primary{background:#0a84ff;color:#fff}
-      #mas-undo-toast .mas-btn-ghost,#mas-skip-toast .mas-btn-ghost{
+      #mas-undo-toast .mas-btn-primary,#mas-skip-toast .mas-btn-primary,#mas-feed-toast .mas-btn-primary{background:#0a84ff;color:#fff}
+      #mas-undo-toast .mas-btn-ghost,#mas-skip-toast .mas-btn-ghost,#mas-feed-toast .mas-btn-ghost{
         background:#2c2c2e;color:#f5f5f7;border:1px solid #3a3a3c;
       }
     `;
@@ -305,6 +305,7 @@
     if (!cfg.showUndoToast || !lastSkip) return;
     ensureToastStyles();
     dismissMasToast(document.getElementById('mas-skip-toast'));
+    dismissMasToast(document.getElementById('mas-feed-toast'));
     let toast = document.getElementById('mas-undo-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -331,6 +332,61 @@
     };
     clearTimeout(showUndoToast._t);
     showUndoToast._t = setTimeout(() => dismissMasToast(toast), Math.max(3, cfg.countdownSec || 3) * 1000);
+  }
+
+  /** 信息流划走后的苹果风 toast */
+  function showFeedSwipeToast(reason) {
+    if (cfg.showUndoToast === false) return;
+    ensureToastStyles();
+    dismissMasToast(document.getElementById('mas-skip-toast'));
+    dismissMasToast(document.getElementById('mas-undo-toast'));
+    let toast = document.getElementById('mas-feed-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'mas-feed-toast';
+      document.documentElement.appendChild(toast);
+    }
+    const title = reason === '直播卡' ? '已划走直播' : (reason === '购物卡' ? '已划走购物' : '已划走广告');
+    toast.innerHTML = `<div class="mas-toast-title">${title}</div>
+      <div class="mas-toast-sub">已切到下一条</div>`;
+    revealToast(toast);
+    clearTimeout(showFeedSwipeToast._t);
+    showFeedSwipeToast._t = setTimeout(() => dismissMasToast(toast), 2200);
+  }
+
+  /** 检测到直播但开关关着：一键开启 */
+  function showEnableLiveSwipeToast() {
+    if (cfg.showUndoToast === false) return;
+    ensureToastStyles();
+    dismissMasToast(document.getElementById('mas-skip-toast'));
+    dismissMasToast(document.getElementById('mas-undo-toast'));
+    let toast = document.getElementById('mas-feed-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'mas-feed-toast';
+      document.documentElement.appendChild(toast);
+    }
+    toast.innerHTML = `<div class="mas-toast-title">检测到直播卡</div>
+      <div class="mas-toast-sub">「划走直播」当前是关的</div>
+      <div class="mas-toast-actions">
+        <button type="button" id="mas-enable-live" class="mas-btn mas-btn-primary">开启并划走</button>
+        <button type="button" id="mas-live-dismiss" class="mas-btn mas-btn-ghost">忽略</button>
+      </div>`;
+    revealToast(toast);
+    toast.querySelector('#mas-enable-live').onclick = () => {
+      cfg.douyinFeedLive = true;
+      try { saveCfg(); } catch { /* ignore */ }
+      dismissMasToast(toast);
+      setStatus('已开启划走直播');
+      lastFeedSkipKey = '';
+      lastFeedSkipAt = 0;
+      swipeToNextFeed();
+      setTimeout(() => swipeToNextFeed(), 220);
+      showFeedSwipeToast('直播卡');
+    };
+    toast.querySelector('#mas-live-dismiss').onclick = () => dismissMasToast(toast);
+    clearTimeout(showEnableLiveSwipeToast._t);
+    showEnableLiveSwipeToast._t = setTimeout(() => dismissMasToast(toast), 8000);
   }
 
   // -------------------- storage --------------------
@@ -1602,6 +1658,38 @@
     return false;
   }
 
+  /** 作者条旁红标「直播中」（与「广告」同位置），不是头像小粉标 */
+  function detectLiveAuthorBadgeInViewport() {
+    const vh = window.innerHeight || 800;
+    const vw = window.innerWidth || 1200;
+    const points = [
+      [0.18, 0.78], [0.22, 0.82], [0.28, 0.8], [0.32, 0.76],
+      [0.2, 0.72], [0.25, 0.86], [0.35, 0.84], [0.4, 0.78],
+      [0.5, 0.84], [0.5, 0.9],
+    ];
+    for (const [fx, fy] of points) {
+      let el = null;
+      try {
+        el = document.elementFromPoint(Math.floor(vw * fx), Math.floor(vh * fy));
+      } catch { /* ignore */ }
+      let n = el;
+      for (let d = 0; d < 8 && n; d += 1) {
+        const t = String(n.innerText || n.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+        if (isStrongLiveRoomText(t)) return true;
+        if (looksLikeLiveBadgeText(t) && /@|进入直播|后将进入|直播间/.test(
+          String(n.parentElement?.innerText || '').replace(/\s+/g, ' ').slice(0, 80),
+        )) return true;
+        if (looksLikeLiveBadgeText(t)) {
+          const r = n.getBoundingClientRect?.() || { left: 0, top: 0, width: 0 };
+          // 作者区：偏左下、宽度不像头像角标那么小块时
+          if (r.left < vw * 0.55 && r.top > vh * 0.55 && r.width >= 28) return true;
+        }
+        n = n.parentElement;
+      }
+    }
+    return detectLivePreviewInViewport();
+  }
+
   function inspectActiveFeedCard() {
     const roots = getFeedInspectRoots();
     const out = { ad: false, live: false, shop: false, text: '' };
@@ -1735,7 +1823,7 @@
 
     const card = inspectActiveFeedCard();
     const text = card.text || douyinCurrentCardText();
-    const liveHit = card.live || isFeedLive(text) || detectLivePreviewInViewport();
+    const liveHit = card.live || isFeedLive(text) || detectLiveAuthorBadgeInViewport();
     const shopHit = card.shop || isFeedShop(text);
     const adHit = card.ad || isFeedAdLike(text) || detectAdBadgeInViewport();
     let shouldSkip = false;
@@ -1756,9 +1844,10 @@
         setStatus('广告卡 · 请打开「划走广告/带货」');
       }
     } else if (!cfg.douyinFeedLive && liveHit) {
-      if (!douyinFeedTick._liveHintAt || now - douyinFeedTick._liveHintAt > 10000) {
+      if (!douyinFeedTick._liveHintAt || now - douyinFeedTick._liveHintAt > 12000) {
         douyinFeedTick._liveHintAt = now;
         setStatus('直播卡 · 请打开「划走直播」');
+        showEnableLiveSwipeToast();
       }
     }
     if (!shouldSkip) return;
@@ -1769,9 +1858,11 @@
     lastFeedSkipKey = key;
     lastFeedSkipAt = now;
     setStatus(`划走${reason}`);
+    ensureToastStyles();
     swipeToNextFeed();
     setTimeout(() => swipeToNextFeed(), 220);
     setTimeout(() => swipeToNextFeed(), 500);
+    setTimeout(() => showFeedSwipeToast(reason), 180);
   }
 
   /** 抖音官方「广告看点」索引 → 跳过区间（口播略加缓冲，勿吞太多正片） */
