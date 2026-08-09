@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.28
+// @version      1.5.29
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.28') return;
-  window.__MAS_VER__ = '1.5.28';
+  if (window.__MAS_VER__ === '1.5.29') return;
+  window.__MAS_VER__ = '1.5.29';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -52,9 +52,9 @@
   const DEFAULTS = {
     autoSkip: true,
     showPanel: false,
-    douyinFeedAd: false,
-    douyinFeedLive: true,
-    douyinFeedShop: false,
+    douyinFeedAd: true,
+    douyinFeedLive: false,
+    douyinFeedShop: true,
     douyinInVideo: true,
     biliInVideo: true,
     feedPollMs: 700,
@@ -2047,7 +2047,7 @@
     if (!shouldAnalyzeDouyinInVideo()) {
       setStatus(isDouyinDetailContext()
         ? '等待播放器…'
-        : '推荐流待命（片内分析需进视频页；广告划走默认关）');
+        : '推荐流待命（片内分析需进视频页；直播划走默认关）');
       return;
     }
     const v = getVideoEl();

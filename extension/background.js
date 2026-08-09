@@ -113,9 +113,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             showUndoToast: true,
             useSponsorBlock: true,
             douyinInVideo: true,
-            douyinFeedAd: false,
-            douyinFeedLive: true,
-            douyinFeedShop: false,
+            douyinFeedAd: true,
+            douyinFeedLive: false,
+            douyinFeedShop: true,
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
@@ -124,6 +124,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             feedSwipe1520: true,
             feedSwipe1523: true,
             feedSep1528: true,
+            feedLiveOff1529: true,
           },
         });
       }
@@ -136,20 +137,25 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         dirty = true;
       }
       if (cfg.feedSwipe1520 !== true) {
-        next.douyinFeedLive = true;
+        next.douyinFeedAd = true;
         next.feedSwipe1520 = true;
         dirty = true;
       }
       if (cfg.feedSwipe1523 !== true) {
+        next.douyinFeedShop = true;
         next.feedSwipe1523 = true;
         dirty = true;
       }
-      // 1.5.28：广告/带货默认关，与直播分开；升级时关掉广告划走
       if (cfg.feedSep1528 !== true) {
-        next.douyinFeedAd = false;
-        next.douyinFeedShop = false;
-        if (typeof next.douyinFeedLive !== 'boolean') next.douyinFeedLive = true;
         next.feedSep1528 = true;
+        dirty = true;
+      }
+      // 1.5.29：默认关直播划走、开广告/带货划走
+      if (cfg.feedLiveOff1529 !== true) {
+        next.douyinFeedLive = false;
+        next.douyinFeedAd = true;
+        next.douyinFeedShop = true;
+        next.feedLiveOff1529 = true;
         dirty = true;
       }
       if (dirty) await chrome.storage.sync.set({ cfg: next });
