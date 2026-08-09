@@ -10,7 +10,7 @@ const DEFAULTS = {
   biliInVideo: true,
   countdownSec: 3,
   softOralSkipSec: 35,
-  feedPollMs: 600,
+  feedPollMs: 900,
 };
 
 async function getCfg() {

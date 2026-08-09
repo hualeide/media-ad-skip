@@ -18,7 +18,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
-            feedPollMs: 600,
+            feedPollMs: 900,
           },
         });
       }

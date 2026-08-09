@@ -15,7 +15,7 @@ const DEFAULTS = {
   douyinFeedShop: false,
   douyinInVideo: true,
   biliInVideo: true,
-  feedPollMs: 600,
+  feedPollMs: 900,
   countdownSec: 3,
   softOralSkipSec: 35,
   useSponsorBlock: true,
@@ -71,7 +71,7 @@ async function load() {
   }
   document.getElementById('countdownSec').value = cfg.countdownSec ?? 3;
   document.getElementById('softOralSkipSec').value = cfg.softOralSkipSec ?? 35;
-  document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 600;
+  document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 900;
   document.getElementById('brandKeywords').value = listToLines(
     local.brandKeywords || cfg.brandKeywords || DEFAULT_BRAND_KW,
   );
@@ -87,7 +87,7 @@ async function save() {
   }
   cfg.countdownSec = Math.max(0, Math.min(15, Number(document.getElementById('countdownSec').value) || 0));
   cfg.softOralSkipSec = Math.max(15, Math.min(90, Number(document.getElementById('softOralSkipSec').value) || 35));
-  cfg.feedPollMs = Math.max(400, Math.min(3000, Number(document.getElementById('feedPollMs').value) || 600));
+  cfg.feedPollMs = Math.max(400, Math.min(3000, Number(document.getElementById('feedPollMs').value) || 900));
   const brandKeywords = linesToList(document.getElementById('brandKeywords').value);
   const blockBvids = linesToList(document.getElementById('blockBvids').value);
   const blockMids = linesToList(document.getElementById('blockMids').value);
