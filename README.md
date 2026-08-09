@@ -12,27 +12,6 @@ B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromi
 
 ---
 
-## 自动更新（怎么「一次下载长期受益」）
-
-本地加载的扩展**不会**静默自动升级。当前路径：
-
-| 方式 | 体验 | 说明 |
-|------|------|------|
-| **本扩展内置检查** | 半自动 | 每天查 GitHub；有新版本图标角标 **↑** |
-| **git clone 安装** | 半自动 | `git pull` → 扩展页「重新加载」 |
-| **油猴** | 自动（脚本管理器） | 已写 `@updateURL`，Tampermonkey 会抽查更新 |
-
-**已解压用户更新步骤：**
-
-1. 弹窗点「去更新」或打开 [Releases](https://github.com/hualeide/media-ad-skip/releases)
-2. 下载 ZIP，用新文件**覆盖**本地的 `extension` 目录（或整仓覆盖）
-3. `chrome://extensions` → Media Ad Skip → **重新加载**
-4. 关掉旧的 B站/抖音标签再开
-
-发布者打版：`node scripts/pack-extension.mjs`，再用 `gh release create …` 挂上 zip。
-
----
-
 ## 🚀 极速上手
 
 推荐先看 **[一页安装说明](https://hualeide.github.io/media-ad-skip/)**。未上架商店：同一份 `extension/` 可装到多款浏览器。
