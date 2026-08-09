@@ -41,6 +41,32 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg && msg.type === 'MAS_DOUYIN_LOGIN') {
+    (async () => {
+      try {
+        const names = ['sessionid', 'sessionid_ss', 'sid_guard', 'uid_tt', 'sid_tt'];
+        const urls = ['https://www.douyin.com', 'https://www.iesdouyin.com'];
+        for (const url of urls) {
+          for (const name of names) {
+            const cookie = await chrome.cookies.get({ url, name });
+            if (cookie?.value && cookie.value.length > 4) {
+              sendResponse({ ok: true, checked: true, loggedIn: true });
+              return;
+            }
+          }
+        }
+        sendResponse({ ok: true, checked: true, loggedIn: false });
+      } catch (e) {
+        sendResponse({
+          ok: false,
+          checked: false,
+          loggedIn: false,
+          error: String(e && e.message ? e.message : e),
+        });
+      }
+    })();
+    return true;
+  }
   if (!msg || msg.type !== 'MAS_FETCH' || !msg.url) return false;
   (async () => {
     try {

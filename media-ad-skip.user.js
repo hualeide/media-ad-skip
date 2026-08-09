@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.13
-// @description  B站/抖音网页版广告跳过：SponsorBlock、字幕品牌词、官方广告看点；可撤销
+// @version      1.5.14
+// @description  B站始终可用；抖音仅登录后启用
 // @author       media-ad-skip
 // @match        *://www.bilibili.com/video/*
 // @match        *://www.bilibili.com/list/*
@@ -22,8 +22,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.13') return;
-  window.__MAS_VER__ = '1.5.13';
+  if (window.__MAS_VER__ === '1.5.14') return;
+  window.__MAS_VER__ = '1.5.14';
   window.__MAS_LOADED__ = true;
 
   const HOST = location.hostname;
@@ -1392,7 +1392,7 @@
   let lastFeedSkipAt = 0;
   let feedTextTick = 0;
   function douyinFeedTick() {
-    if (!IS_DOUYIN || document.hidden) return;
+    if (!IS_DOUYIN || !douyinRuntimeStarted || document.hidden) return;
     const now = Date.now();
     if (now - lastFeedSkipAt < 1200) return;
 
@@ -1848,6 +1848,10 @@
   }
 
   async function douyinAnalyzeInVideo() {
+    if (!douyinRuntimeStarted) {
+      setStatus('抖音未登录 · 休眠');
+      return;
+    }
     if (isBlockedVideo()) {
       setStatus('本视频已禁用');
       activeSeg = null;
@@ -2116,24 +2120,108 @@
   }
 
   let feedTimer = null;
+  let douyinRuntimeStarted = false;
+  let douyinLoginTimer = null;
+
+  function cookieLooksLoggedIn() {
+    try {
+      const c = document.cookie || '';
+      const keys = ['sessionid', 'sessionid_ss', 'sid_guard', 'uid_tt', 'sid_tt', 'passport_auth_status'];
+      for (const k of keys) {
+        const m = c.match(new RegExp(`(?:^|;\\s*)${k}=([^;]+)`));
+        if (m && m[1] && m[1] !== 'null' && m[1] !== 'undefined' && m[1].length > 4) return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
+
+  function domLooksDouyinLoggedIn() {
+    try {
+      if (document.querySelector('a[href*="/user/"] img, [data-e2e="live-avatar"], [data-e2e="user-info"]')) {
+        return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
+
+  /** 抖音：未登录一律休眠；B站不走此逻辑 */
+  async function isDouyinLoggedIn() {
+    if (!IS_DOUYIN) return true;
+    if (cookieLooksLoggedIn()) return true;
+    if (IS_EXT && chrome.runtime?.sendMessage) {
+      try {
+        const r = await chrome.runtime.sendMessage({ type: 'MAS_DOUYIN_LOGIN' });
+        if (r && typeof r.loggedIn === 'boolean') return r.loggedIn;
+      } catch { /* ignore */ }
+    }
+    return domLooksDouyinLoggedIn();
+  }
+
   function startFeedPoll() {
     if (feedTimer) {
       clearInterval(feedTimer);
       feedTimer = null;
     }
-    if (!IS_DOUYIN) return;
+    if (!IS_DOUYIN || !douyinRuntimeStarted) return;
     feedTimer = setInterval(douyinFeedTick, Math.max(400, cfg.feedPollMs || 600));
   }
 
-  function boot() {
-    bindExtCommands();
-    // toast 样式延后：抖音首页水合时少动 DOM
-    if (!IS_DOUYIN) ensureToastStyles();
+  function startDouyinRuntime() {
+    if (douyinRuntimeStarted) return;
+    douyinRuntimeStarted = true;
+    if (douyinLoginTimer) {
+      clearInterval(douyinLoginTimer);
+      douyinLoginTimer = null;
+    }
+    ensureToastStyles();
     ensurePanel();
     registerMenu();
     watchPlayback();
+    setStatus('抖音已登录 · 启用');
+    const kick = () => {
+      if (!douyinRuntimeStarted) return;
+      resetPlaybackState();
+      if (!shouldAnalyzeDouyinInVideo()) {
+        setStatus('推荐流待命（点进视频页再分析片内广告）');
+        return;
+      }
+      setStatus('切换视频…');
+      setTimeout(() => douyinAnalyzeInVideo(), 1500);
+    };
+    const start = () => {
+      startFeedPoll();
+      kick();
+      observeSpa(kick);
+    };
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => setTimeout(start, 800), { timeout: 2500 });
+    } else {
+      setTimeout(start, 1000);
+    }
+  }
+
+  function waitDouyinLoginThenStart() {
+    setStatus('抖音未登录 · 休眠（登录后自动启用）');
+    const probe = async () => {
+      if (await isDouyinLoggedIn()) {
+        startDouyinRuntime();
+        return true;
+      }
+      return false;
+    };
+    probe();
+    douyinLoginTimer = setInterval(() => { probe(); }, 5000);
+  }
+
+  function boot() {
+    // 弹窗指令始终可响应；抖音未登录时不跑分析/轮询
+    bindExtCommands();
 
     if (IS_BILI) {
+      ensureToastStyles();
+      ensurePanel();
+      registerMenu();
+      watchPlayback();
       setStatus('B站模式');
       const kick = () => {
         resetPlaybackState();
@@ -2142,32 +2230,15 @@
       };
       kick();
       observeSpa(kick);
-    } else if (IS_DOUYIN) {
-      setStatus('抖音模式（稳）');
-      const kick = () => {
-        resetPlaybackState();
-        if (!shouldAnalyzeDouyinInVideo()) {
-          setStatus('推荐流待命（点进视频页再分析片内广告）');
-          return;
-        }
-        setStatus('切换视频…');
-        setTimeout(() => douyinAnalyzeInVideo(), 1500);
-      };
-      // 等页面先站稳再挂轮询/分析，未登录首页尤其必要
-      const start = () => {
-        ensureToastStyles();
-        startFeedPoll();
-        kick();
-        observeSpa(kick);
-      };
-      if (typeof requestIdleCallback === 'function') {
-        requestIdleCallback(() => setTimeout(start, 1800), { timeout: 4000 });
-      } else {
-        setTimeout(start, 2200);
-      }
-    } else {
-      setStatus('未识别站点');
+      return;
     }
+
+    if (IS_DOUYIN) {
+      waitDouyinLoginThenStart();
+      return;
+    }
+
+    setStatus('未识别站点');
   }
 
   if (document.readyState === 'loading') {

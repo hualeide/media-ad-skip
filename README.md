@@ -2,7 +2,7 @@
 
 B站 + 抖音**网页版**片内/信息流广告跳过工具。提供 **Chrome/Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
-> 当前版本 **1.5.13** · [隐私说明](extension/PRIVACY.md) · [商店文案](extension/STORE.md)
+> 当前版本 **1.5.14** · 抖音仅登录后启用 · [隐私说明](extension/PRIVACY.md) · [商店文案](extension/STORE.md)
 
 ## 作用
 

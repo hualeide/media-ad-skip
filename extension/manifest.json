@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Media Ad Skip",
-  "version": "1.5.13",
-  "description": "B站/抖音广告跳过：SponsorBlock、字幕品牌词、看点广告；支持撤销、本集禁用与标错反馈。",
+  "version": "1.5.14",
+  "description": "B站始终可用；抖音仅登录后跳广告。SponsorBlock / 看点 / 字幕品牌词。",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -25,7 +25,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "cookies"],
   "host_permissions": [
     "*://*.bilibili.com/*",
     "*://*.douyin.com/*",
