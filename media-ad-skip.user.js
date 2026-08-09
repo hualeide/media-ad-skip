@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.26
+// @version      1.5.27
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.26') return;
-  window.__MAS_VER__ = '1.5.26';
+  if (window.__MAS_VER__ === '1.5.27') return;
+  window.__MAS_VER__ = '1.5.27';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -1404,9 +1404,9 @@
     return null;
   }
 
-  /** 抖音推荐流：下一则是「上滑」手势 → ArrowUp + 负向滚轮（ArrowDown 会滑回上一条） */
+  /** 抖音推荐流：下一则 → ArrowDown + 正向滚轮（ArrowUp 会回到上一条，以实测为准） */
   function pressFeedNextKey() {
-    const opts = { key: 'ArrowUp', code: 'ArrowUp', keyCode: 38, which: 38, bubbles: true, cancelable: true };
+    const opts = { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40, bubbles: true, cancelable: true };
     const v = getVideoEl();
     const root = getActiveFeedRoot() || v || document.body;
     for (const t of [root, document, window]) {
@@ -1417,8 +1417,16 @@
     }
   }
 
-  /** 信息流下一则：键盘 + 滚轮 + 官方切换按钮（滚轮打在 video 上，避免点到头像进直播） */
+  /** 信息流下一则：优先官方按钮，再键盘 + 滚轮（滚轮打在 video 上，避免点到头像进直播） */
   function swipeToNextFeed() {
+    const nextBtn = document.querySelector(
+      '[data-e2e="video-switch-next-arrow"], [data-e2e="feed-scroll-down"],'
+      + '[data-e2e="arrow-right"], [data-e2e="video-switch-button-down"],'
+      + '.xgplayer-playswitch-next, button[aria-label*="下"], button[title*="下"]',
+    );
+    if (nextBtn) {
+      try { nextBtn.click(); } catch { /* ignore */ }
+    }
     pressFeedNextKey();
     try {
       const v = getVideoEl();
@@ -1427,18 +1435,11 @@
       if (target) {
         const midX = Math.floor(window.innerWidth / 2);
         const midY = Math.floor(window.innerHeight / 2);
-        // 负 deltaY = 上滑 = 下一条
-        const wheel = { deltaY: -900, deltaMode: 0, bubbles: true, cancelable: true, clientX: midX, clientY: midY };
+        // 正 deltaY = 滚轮向下 = 下一条（与 ArrowDown 一致）
+        const wheel = { deltaY: 900, deltaMode: 0, bubbles: true, cancelable: true, clientX: midX, clientY: midY };
         target.dispatchEvent(new WheelEvent('wheel', wheel));
       }
     } catch { /* ignore */ }
-    const nextBtn = document.querySelector(
-      '[data-e2e="video-switch-next-arrow"], [data-e2e="feed-scroll-down"],'
-      + '.xgplayer-playswitch-next',
-    );
-    if (nextBtn) {
-      try { nextBtn.click(); } catch { /* ignore */ }
-    }
   }
 
   /** 有预算地摘文本，避免整卡 textContent/innerText 拖垮抖音页 */
