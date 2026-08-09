@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
-// @namespace    https://github.com/local/media-ad-skip
+// @namespace    https://github.com/hualeide/media-ad-skip
 // @version      1.5.11
-// @description  抖音激活卡seek/ID统一；feedPoll可热更新；设置与弹窗对齐
+// @description  B站/抖音网页版广告跳过：SponsorBlock、字幕品牌词、官方广告看点；可撤销
 // @author       media-ad-skip
 // @match        *://www.bilibili.com/video/*
 // @match        *://www.bilibili.com/list/*
