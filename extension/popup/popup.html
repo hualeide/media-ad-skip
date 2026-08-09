@@ -15,6 +15,7 @@
       --blue-pressed: #0071e3;
       --fill: #3a3a3c;
       --green: #30d158;
+      --orange: #ff9f0a;
     }
     * { box-sizing: border-box; }
     body {
@@ -66,7 +67,12 @@
       font-weight: 400;
       letter-spacing: -0.01em;
     }
-    /* iOS switch */
+    .row-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--secondary);
+    }
     .switch {
       position: relative;
       width: 51px;
@@ -104,6 +110,9 @@
     }
     .switch input:checked + .track .knob {
       transform: translateX(20px);
+    }
+    .switch.danger input:checked + .track {
+      background: var(--orange);
     }
     .actions {
       display: flex;
@@ -166,17 +175,25 @@
         <span class="track"><span class="knob"></span></span>
       </span>
     </label>
+    <label class="row">
+      <span>
+        <span class="row-label" id="blockLabel">本集不跳</span>
+        <span class="row-sub" id="blockHint">关：本集会跳过广告</span>
+      </span>
+      <span class="switch danger">
+        <input type="checkbox" id="blockThis" />
+        <span class="track"><span class="knob"></span></span>
+      </span>
+    </label>
   </div>
 
   <div class="actions">
     <button type="button" id="reanalyze" class="primary">重新分析</button>
     <button type="button" id="undo">撤销跳过</button>
-    <button type="button" id="block">本集不跳</button>
     <button type="button" id="wrong">标错了</button>
-    <button type="button" id="reloadTab">刷新当前页</button>
     <button type="button" id="openOptions">打开设置页</button>
   </div>
-  <p class="footnote">SponsorBlock、片内广告等详见设置页。</p>
+  <p class="footnote">品牌词 / SponsorBlock 等在设置页。改完一般立刻生效，不必刷新页面。</p>
   <script src="popup.js"></script>
 </body>
 </html>

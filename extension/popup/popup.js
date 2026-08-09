@@ -42,7 +42,7 @@ async function sendCmd(cmd) {
   try {
     return await chrome.tabs.sendMessage(tab.id, { type: 'MAS_CMD', cmd });
   } catch {
-    return { ok: false, error: '页面未加载插件，请点下方「刷新当前页」' };
+    return { ok: false, error: '页面未加载插件，请刷新该视频页后再试' };
   }
 }
 
@@ -50,16 +50,27 @@ function setStatus(text) {
   document.getElementById('status').textContent = text || '待命';
 }
 
+function setBlockUi(blocked) {
+  const input = document.getElementById('blockThis');
+  const hint = document.getElementById('blockHint');
+  input.checked = !!blocked;
+  hint.textContent = blocked ? '开：本集不会自动跳广告' : '关：本集会跳过广告';
+}
+
 async function refreshStatus() {
   const res = await sendCmd('status');
-  if (res?.ok) setStatus(res.status || '待命');
-  else setStatus(res?.error || '待命');
+  if (res?.ok) {
+    setStatus(res.status || '待命');
+    setBlockUi(!!res.blocked);
+  } else {
+    setStatus(res?.error || '待命');
+    setBlockUi(false);
+  }
 }
 
 async function load() {
   const c = await getCfg();
   document.getElementById('autoSkip').checked = c.autoSkip !== false;
-  // 划走：信息流广告 + 直播卡共用一个开关
   document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive);
   await refreshStatus();
 }
@@ -71,23 +82,30 @@ document.getElementById('feedSwipe').addEventListener('change', (e) => {
   const on = e.target.checked;
   patch({ douyinFeedAd: on, douyinFeedLive: on });
 });
+document.getElementById('blockThis').addEventListener('change', async (e) => {
+  const on = e.target.checked;
+  const res = await sendCmd(on ? 'block' : 'unblock');
+  if (res?.ok) {
+    setStatus(res.status || (on ? '本集已禁用' : '已恢复本集'));
+    setBlockUi(!!res.blocked || on);
+  } else {
+    setStatus(res?.error || '操作失败');
+    e.target.checked = !on;
+    setBlockUi(!on);
+  }
+});
 
 async function run(cmd) {
   const res = await sendCmd(cmd);
   setStatus(res?.status || res?.error || '完成');
+  if (typeof res?.blocked === 'boolean') setBlockUi(res.blocked);
 }
 
 document.getElementById('reanalyze').addEventListener('click', () => run('reanalyze'));
 document.getElementById('undo').addEventListener('click', () => run('undo'));
-document.getElementById('block').addEventListener('click', () => run('block'));
 document.getElementById('wrong').addEventListener('click', () => run('wrong'));
 document.getElementById('openOptions').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
-});
-document.getElementById('reloadTab').addEventListener('click', async () => {
-  const tab = await activeTab();
-  if (tab?.id) chrome.tabs.reload(tab.id);
-  setStatus('已刷新，请稍候再打开插件');
 });
 
 load();

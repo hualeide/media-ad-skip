@@ -72,9 +72,21 @@ async function load() {
   document.getElementById('countdownSec').value = cfg.countdownSec ?? 3;
   document.getElementById('softOralSkipSec').value = cfg.softOralSkipSec ?? 35;
   document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 900;
-  document.getElementById('brandKeywords').value = listToLines(
-    local.brandKeywords || cfg.brandKeywords || DEFAULT_BRAND_KW,
-  );
+
+  let brands = local.brandKeywords || cfg.brandKeywords || DEFAULT_BRAND_KW;
+  if (!Array.isArray(brands)) brands = DEFAULT_BRAND_KW.slice();
+  brands = brands.map((x) => String(x).trim()).filter(Boolean);
+  // 残缺短列表（例如只剩 5 个）自动补全默认词并写回
+  if (brands.length > 0 && brands.length < Math.ceil(DEFAULT_BRAND_KW.length * 0.5)) {
+    const set = new Set(brands);
+    for (const k of DEFAULT_BRAND_KW) set.add(k);
+    brands = [...set];
+    await chrome.storage.local.set({ brandKeywords: brands });
+    showToast(`已补全默认品牌词（现 ${brands.length} 个）`);
+  } else if (!brands.length) {
+    brands = DEFAULT_BRAND_KW.slice();
+  }
+  document.getElementById('brandKeywords').value = listToLines(brands);
   document.getElementById('blockBvids').value = listToLines(local.blockBvids || cfg.blockBvids || []);
   document.getElementById('blockMids').value = listToLines(local.blockMids || cfg.blockMids || []);
   await loadFeedback();

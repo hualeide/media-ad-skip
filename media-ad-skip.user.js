@@ -22,8 +22,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.15') return;
-  window.__MAS_VER__ = '1.5.15';
+  if (window.__MAS_VER__ === '1.5.17') return;
+  window.__MAS_VER__ = '1.5.17';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -83,9 +83,16 @@
   let softOralReady = false;
 
   function brandList() {
-    // null/undefined → 默认；显式 [] 表示用户清空，不再回退默认
+    // null/undefined → 默认；显式 [] 表示用户清空；过短残缺列表 → 补全默认词
     if (!Array.isArray(cfg.brandKeywords)) return DEFAULT_BRAND_KW.slice();
-    return cfg.brandKeywords.map((x) => String(x).trim()).filter(Boolean);
+    const cur = cfg.brandKeywords.map((x) => String(x).trim()).filter(Boolean);
+    if (!cur.length) return [];
+    if (cur.length < Math.ceil(DEFAULT_BRAND_KW.length * 0.5)) {
+      const set = new Set(cur);
+      for (const k of DEFAULT_BRAND_KW) set.add(k);
+      return [...set];
+    }
+    return cur;
   }
 
   function generalKw() {
@@ -173,6 +180,23 @@
     skippedKeys = new Set();
     lastSkip = null;
     setStatus('本视频已禁用跳过');
+  }
+
+  function unblockCurrentVideo() {
+    const id = currentVideoId();
+    if (!id) {
+      setStatus('无法识别视频 ID');
+      return;
+    }
+    cfg.blockBvids = (cfg.blockBvids || []).map(String).filter((x) => x !== String(id));
+    saveCfg();
+    setStatus('已恢复本集跳过');
+  }
+
+  function isCurrentVideoBlocked() {
+    const id = currentVideoId();
+    if (!id) return false;
+    return (cfg.blockBvids || []).map(String).includes(String(id));
   }
 
   function undoLastSkip() {
@@ -2081,13 +2105,14 @@
                 videoId: IS_DOUYIN && typeof getDouyinAwemeId === 'function'
                   ? getDouyinAwemeId()
                   : currentVideoId(),
+                blocked: isCurrentVideoBlocked(),
               });
               break;
             case 'reanalyze':
               resetPlaybackState();
               if (IS_BILI) await runBilibili();
               else await douyinAnalyzeInVideo();
-              sendResponse({ ok: true, status: statusText });
+              sendResponse({ ok: true, status: statusText, blocked: isCurrentVideoBlocked() });
               break;
             case 'undo':
               undoLastSkip();
@@ -2095,7 +2120,11 @@
               break;
             case 'block':
               blockCurrentVideo();
-              sendResponse({ ok: true, status: statusText });
+              sendResponse({ ok: true, status: statusText, blocked: true });
+              break;
+            case 'unblock':
+              unblockCurrentVideo();
+              sendResponse({ ok: true, status: statusText, blocked: false });
               break;
             case 'skipNow':
               if (activeSeg) doSkip(activeSeg, true);
