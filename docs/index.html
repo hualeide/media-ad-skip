@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Media Ad Skip · 安装</title>
+  <meta name="description" content="B站 / 抖音网页版广告跳过。一页装完 Chromium 扩展、Firefox 或油猴。" />
+  <link rel="icon" href="icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a1814;
+      --muted: #5c574e;
+      --paper: #f7f3ea;
+      --sand: #ebe4d6;
+      --line: #d4cbb8;
+      --skip: #e85d04;
+      --skip-deep: #c44d00;
+      --ok: #2a6f4e;
+      --focus: #1a5fb4;
+      --radius: 2px;
+      --font-display: "Instrument Sans", "Noto Sans SC", system-ui, sans-serif;
+      --font-body: "Noto Sans SC", "Instrument Sans", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--skip-deep); }
+    a:hover { color: var(--ink); }
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .noise {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 1.25rem 4rem;
+    }
+
+    /* —— Hero: full-bleed timeline plane —— */
+    .hero {
+      position: relative;
+      min-height: min(92vh, 720px);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 1.25rem 0 2.5rem;
+      margin: 0 -1.25rem 2.5rem;
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+      overflow: hidden;
+      background:
+        radial-gradient(120% 80% at 80% 0%, #ffe8d6 0%, transparent 55%),
+        linear-gradient(180deg, #fff9f0 0%, var(--paper) 70%);
+    }
+
+    .timeline {
+      position: absolute;
+      inset: 12% 0 auto;
+      height: 42%;
+      pointer-events: none;
+    }
+    .timeline-track {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 48%;
+      height: 3px;
+      background: var(--line);
+      border-radius: 2px;
+    }
+    .timeline-gap {
+      position: absolute;
+      left: 38%;
+      width: 18%;
+      top: 48%;
+      height: 3px;
+      background: var(--skip);
+      transform-origin: left center;
+      animation: gap-pulse 3.2s ease-in-out infinite;
+    }
+    .playhead {
+      position: absolute;
+      left: 22%;
+      top: 48%;
+      width: 14px;
+      height: 14px;
+      margin: -5.5px 0 0;
+      border-radius: 50%;
+      background: var(--ink);
+      box-shadow: 0 0 0 4px rgba(232, 93, 4, 0.25);
+      animation: skip-ahead 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .tick {
+      position: absolute;
+      top: calc(48% + 14px);
+      font-size: 0.7rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      font-family: var(--font-display);
+    }
+    .tick-a { left: 10%; }
+    .tick-b { left: 55%; color: var(--skip-deep); font-weight: 600; }
+    .tick-c { right: 10%; }
+
+    @keyframes skip-ahead {
+      0%, 18% { left: 22%; }
+      42%, 58% { left: 56%; }
+      82%, 100% { left: 22%; }
+    }
+    @keyframes gap-pulse {
+      0%, 100% { opacity: 0.55; transform: scaleX(1); }
+      40% { opacity: 1; transform: scaleX(1.05); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .playhead, .timeline-gap { animation: none; }
+      .playhead { left: 56%; }
+    }
+
+    .brand {
+      position: relative;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(2.4rem, 8vw, 3.6rem);
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin: 0 0 0.75rem;
+    }
+    .brand span {
+      display: inline-block;
+      color: var(--skip);
+    }
+    .lede {
+      position: relative;
+      max-width: 28rem;
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .cta-row {
+      position: relative;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.85rem 1.25rem;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--skip);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--skip-deep);
+      color: #fff;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+    }
+    .btn-ghost:hover {
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .ver {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: var(--font-display);
+    }
+
+    /* —— Install —— */
+    section {
+      margin-bottom: 2.75rem;
+    }
+    h2 {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.35rem;
+    }
+    .section-lede {
+      margin: 0 0 1.25rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 0;
+    }
+    .tab {
+      appearance: none;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      padding: 0.6rem 0.85rem;
+      font: inherit;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .tab[aria-selected="true"] {
+      color: var(--ink);
+      border-bottom-color: var(--skip);
+      font-weight: 700;
+    }
+    .panel[hidden] { display: none; }
+
+    ol.steps {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+    ol.steps li {
+      position: relative;
+      padding: 0.9rem 0 0.9rem 2.75rem;
+      border-top: 1px solid var(--line);
+      animation: rise 0.5s ease both;
+    }
+    ol.steps li:nth-child(2) { animation-delay: 0.06s; }
+    ol.steps li:nth-child(3) { animation-delay: 0.12s; }
+    ol.steps li:nth-child(4) { animation-delay: 0.18s; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      ol.steps li { animation: none; }
+    }
+    ol.steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0.95rem;
+      width: 1.75rem;
+      height: 1.75rem;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.85rem;
+      background: var(--sand);
+      color: var(--ink);
+      border-radius: 50%;
+    }
+    code, .path {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.86em;
+      background: var(--sand);
+      padding: 0.1em 0.35em;
+      border-radius: 2px;
+    }
+    .warn {
+      margin-top: 0.85rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--skip);
+      background: #fff4eb;
+      font-size: 0.9rem;
+      color: var(--ink);
+    }
+    .ok-note {
+      margin-top: 0.85rem;
+      font-size: 0.9rem;
+      color: var(--ok);
+    }
+
+    .faq dt {
+      font-weight: 700;
+      margin-top: 1rem;
+    }
+    .faq dd {
+      margin: 0.25rem 0 0;
+      color: var(--muted);
+    }
+
+    footer {
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+    }
+    footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+    footer a:hover { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="hero">
+      <div class="timeline" aria-hidden="true">
+        <div class="timeline-track"></div>
+        <div class="timeline-gap"></div>
+        <div class="playhead"></div>
+        <span class="tick tick-a">正片</span>
+        <span class="tick tick-b">跳过广告</span>
+        <span class="tick tick-c">正片</span>
+      </div>
+      <h1 class="brand">Media Ad <span>Skip</span></h1>
+      <p class="lede">B站 / 抖音网页版，自动跳过片内恰饭与信息流广告。未上架商店，按下面三步装上即可。</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" id="dl-zip" href="https://github.com/hualeide/media-ad-skip/releases/latest">下载扩展 ZIP</a>
+        <a class="btn btn-ghost" href="https://raw.githubusercontent.com/hualeide/media-ad-skip/master/media-ad-skip.user.js">装油猴脚本</a>
+        <span class="ver" id="ver-label">读取最新版本…</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="install" aria-labelledby="install-title">
+        <h2 id="install-title">怎么装</h2>
+        <p class="section-lede">先下 ZIP 解压；目录里要直接看到 <code>manifest.json</code>。</p>
+
+        <div class="tabs" role="tablist" aria-label="安装方式">
+          <button type="button" class="tab" role="tab" id="tab-chromium" aria-controls="panel-chromium" aria-selected="true">Chrome / Edge 等</button>
+          <button type="button" class="tab" role="tab" id="tab-firefox" aria-controls="panel-firefox" aria-selected="false">Firefox</button>
+          <button type="button" class="tab" role="tab" id="tab-tm" aria-controls="panel-tm" aria-selected="false">油猴</button>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-chromium" aria-labelledby="tab-chromium">
+          <ol class="steps">
+            <li>下载 ZIP 并解压。记住解压后的文件夹位置。</li>
+            <li>打开扩展页：Chrome <code>chrome://extensions</code> · Edge <code>edge://extensions</code> · Brave / Opera / Vivaldi 同理，打开开发者模式。</li>
+            <li>点「加载已解压的扩展程序」，选中含 <code>manifest.json</code> 的那一层（通常叫 <span class="path">extension</span>）。</li>
+            <li>打开 B站或抖音网页，点工具栏图标即可用。</li>
+          </ol>
+          <p class="warn">选成仓库根目录会失败。必须选里面直接有 <code>manifest.json</code> 的文件夹。</p>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-firefox" aria-labelledby="tab-firefox" hidden>
+          <ol class="steps">
+            <li>需要 Firefox 121+。下载并解压 ZIP。</li>
+            <li>打开 <code>about:debugging#/runtime/this-firefox</code>。</li>
+            <li>「临时载入附加组件」→ 选解压目录里的 <code>manifest.json</code>。</li>
+            <li>打开 B站 / 抖音网页使用。浏览器重启后需再载一次。</li>
+          </ol>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-tm" aria-labelledby="tab-tm" hidden>
+          <ol class="steps">
+            <li>安装 Tampermonkey / Violentmonkey 等脚本管理器。</li>
+            <li>点上方「装油猴脚本」，在管理器里确认安装。</li>
+            <li>打开 B站 / 抖音页面；脚本带 <code>@updateURL</code>，管理器会抽查更新。</li>
+          </ol>
+          <p class="ok-note">油猴适合不想碰「开发者模式」的用户；扩展功能更完整（设置页、更新角标）。</p>
+        </div>
+      </section>
+
+      <section id="update" aria-labelledby="update-title">
+        <h2 id="update-title">以后怎么更新</h2>
+        <p class="section-lede">本地加载不会静默升级；扩展会每天查 GitHub，有新版图标角标显示 ↑。</p>
+        <ol class="steps">
+          <li>从本页或 <a href="https://github.com/hualeide/media-ad-skip/releases/latest">Releases</a> 再下最新 ZIP。</li>
+          <li>用新文件覆盖本地扩展目录，扩展页点「重新加载」。</li>
+          <li>关掉旧的 B站 / 抖音标签再开。</li>
+        </ol>
+      </section>
+
+      <section id="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">装不上？</h2>
+        <dl class="faq">
+          <dt>扩展在，页面没反应</dt>
+          <dd>确认是 bilibili.com / douyin.com；重载扩展后新开标签。</dd>
+          <dt>抖音卡顿</dt>
+          <dd>选项里先关掉「信息流广告 / 直播卡」，尽量进具体视频页再测。</dd>
+          <dt>只覆盖哪些站？</dt>
+          <dd>仅 B站与抖音网页版；客户端 App 与其它视频站不做。</dd>
+        </dl>
+      </section>
+    </main>
+
+    <footer>
+      <a href="https://github.com/hualeide/media-ad-skip">源码</a>
+      <a href="https://github.com/hualeide/media-ad-skip/blob/master/extension/PRIVACY.md">隐私</a>
+      <a href="https://github.com/hualeide/media-ad-skip/blob/master/README.md">完整说明</a>
+      <span>MIT · 开源自用</span>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+      var panels = {
+        'tab-chromium': document.getElementById('panel-chromium'),
+        'tab-firefox': document.getElementById('panel-firefox'),
+        'tab-tm': document.getElementById('panel-tm')
+      };
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          tabs.forEach(function (t) {
+            t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+          });
+          Object.keys(panels).forEach(function (id) {
+            panels[id].hidden = id !== tab.id;
+          });
+        });
+      });
+
+      var dl = document.getElementById('dl-zip');
+      var ver = document.getElementById('ver-label');
+      fetch('https://api.github.com/repos/hualeide/media-ad-skip/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' }
+      })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (j) {
+          var tag = String(j.tag_name || '').replace(/^v/i, '');
+          var asset = (j.assets || []).find(function (a) {
+            return /\.zip$/i.test(a.name || '');
+          });
+          if (asset && asset.browser_download_url) {
+            dl.href = asset.browser_download_url;
+          }
+          ver.textContent = tag ? ('最新 ' + tag) : '最新 Release';
+        })
+        .catch(function () {
+          ver.textContent = '打开 Releases 选最新包';
+        });
+    })();
+  </script>
+</body>
+</html>

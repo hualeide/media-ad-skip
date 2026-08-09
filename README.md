@@ -7,6 +7,7 @@
 
 B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromium / Firefox 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
+> **安装**：打开 [一页安装说明](https://hualeide.github.io/media-ad-skip/)（下载 ZIP → 按浏览器步骤加载）。  
 > **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.25**。隐私说明见 [`extension/PRIVACY.md`](extension/PRIVACY.md)。
 
 ---
@@ -34,7 +35,7 @@ B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromi
 
 ## 🚀 极速上手
 
-未上架商店：同一份 `extension/` 可装到多款浏览器（开发者模式 / 临时加载）。
+推荐先看 **[一页安装说明](https://hualeide.github.io/media-ad-skip/)**。未上架商店：同一份 `extension/` 可装到多款浏览器。
 
 | 浏览器 | 扩展页 | 说明 |
 |--------|--------|------|
