@@ -113,27 +113,34 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             showUndoToast: true,
             useSponsorBlock: true,
             douyinInVideo: true,
-            douyinFeedAd: false,
-            douyinFeedLive: false,
+            douyinFeedAd: true,
+            douyinFeedLive: true,
             douyinFeedShop: false,
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
-            feedPollMs: 900,
+            feedPollMs: 700,
             crashSafe131: true,
+            feedSwipe1520: true,
           },
         });
       }
       chrome.runtime.openOptionsPage();
-    } else if (details.reason === 'update' && cfg && typeof cfg === 'object' && cfg.crashSafe131 !== true) {
-      await chrome.storage.sync.set({
-        cfg: {
-          ...cfg,
-          douyinFeedAd: false,
-          douyinFeedLive: false,
-          crashSafe131: true,
-        },
-      });
+    } else if (details.reason === 'update' && cfg && typeof cfg === 'object') {
+      const next = { ...cfg };
+      let dirty = false;
+      if (cfg.crashSafe131 !== true) {
+        next.crashSafe131 = true;
+        dirty = true;
+      }
+      // 1.5.20：默认打开信息流划走（用户要的功能）；仅迁移一次
+      if (cfg.feedSwipe1520 !== true) {
+        next.douyinFeedAd = true;
+        next.douyinFeedLive = true;
+        next.feedSwipe1520 = true;
+        dirty = true;
+      }
+      if (dirty) await chrome.storage.sync.set({ cfg: next });
     }
   } catch { /* ignore */ }
 

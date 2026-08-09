@@ -10,12 +10,12 @@ const DEFAULT_BRAND_KW = [
 const DEFAULTS = {
   autoSkip: true,
   showPanel: false,
-  douyinFeedAd: false,
-  douyinFeedLive: false,
+  douyinFeedAd: true,
+  douyinFeedLive: true,
   douyinFeedShop: false,
   douyinInVideo: true,
   biliInVideo: true,
-  feedPollMs: 900,
+  feedPollMs: 700,
   countdownSec: 3,
   softOralSkipSec: 35,
   useSponsorBlock: true,
@@ -71,7 +71,7 @@ async function load() {
   }
   document.getElementById('countdownSec').value = cfg.countdownSec ?? 3;
   document.getElementById('softOralSkipSec').value = cfg.softOralSkipSec ?? 35;
-  document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 900;
+  document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 700;
 
   let brands = local.brandKeywords || cfg.brandKeywords || DEFAULT_BRAND_KW;
   if (!Array.isArray(brands)) brands = DEFAULT_BRAND_KW.slice();
@@ -99,7 +99,7 @@ async function save() {
   }
   cfg.countdownSec = Math.max(0, Math.min(15, Number(document.getElementById('countdownSec').value) || 0));
   cfg.softOralSkipSec = Math.max(15, Math.min(90, Number(document.getElementById('softOralSkipSec').value) || 35));
-  cfg.feedPollMs = Math.max(400, Math.min(3000, Number(document.getElementById('feedPollMs').value) || 900));
+  cfg.feedPollMs = Math.max(400, Math.min(3000, Number(document.getElementById('feedPollMs').value) || 700));
   const brandKeywords = linesToList(document.getElementById('brandKeywords').value);
   const blockBvids = linesToList(document.getElementById('blockBvids').value);
   const blockMids = linesToList(document.getElementById('blockMids').value);

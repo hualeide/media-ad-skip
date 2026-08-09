@@ -4,13 +4,13 @@ const DEFAULTS = {
   showUndoToast: true,
   useSponsorBlock: true,
   douyinInVideo: true,
-  douyinFeedAd: false,
-  douyinFeedLive: false,
+  douyinFeedAd: true,
+  douyinFeedLive: true,
   douyinFeedShop: false,
   biliInVideo: true,
   countdownSec: 3,
   softOralSkipSec: 35,
-  feedPollMs: 900,
+  feedPollMs: 700,
 };
 
 let lastVideoId = null;
