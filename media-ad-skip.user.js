@@ -165,11 +165,11 @@
     }
   }
 
-  function blockCurrentVideo() {
-    const id = currentVideoId();
+  function blockCurrentVideo(forcedId) {
+    const id = forcedId || currentVideoId();
     if (!id) {
       setStatus('无法识别视频 ID');
-      return;
+      return false;
     }
     const set = new Set((cfg.blockBvids || []).map(String));
     set.add(String(id));
@@ -180,17 +180,19 @@
     skippedKeys = new Set();
     lastSkip = null;
     setStatus('本视频已禁用跳过');
+    return true;
   }
 
-  function unblockCurrentVideo() {
-    const id = currentVideoId();
+  function unblockCurrentVideo(forcedId) {
+    const id = forcedId || currentVideoId();
     if (!id) {
       setStatus('无法识别视频 ID');
-      return;
+      return false;
     }
     cfg.blockBvids = (cfg.blockBvids || []).map(String).filter((x) => x !== String(id));
     saveCfg();
     setStatus('已恢复本集跳过');
+    return true;
   }
 
   function isCurrentVideoBlocked() {
@@ -2119,12 +2121,16 @@
               sendResponse({ ok: true, status: statusText });
               break;
             case 'block':
-              blockCurrentVideo();
+              blockCurrentVideo(msg.videoId);
               sendResponse({ ok: true, status: statusText, blocked: true });
               break;
             case 'unblock':
-              unblockCurrentVideo();
-              sendResponse({ ok: true, status: statusText, blocked: false });
+              unblockCurrentVideo(msg.videoId);
+              sendResponse({
+                ok: true,
+                status: statusText,
+                blocked: isCurrentVideoBlocked(),
+              });
               break;
             case 'skipNow':
               if (activeSeg) doSkip(activeSeg, true);

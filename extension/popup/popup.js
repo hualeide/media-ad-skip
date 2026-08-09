@@ -13,6 +13,8 @@ const DEFAULTS = {
   feedPollMs: 900,
 };
 
+let lastVideoId = null;
+
 async function getCfg() {
   const { cfg } = await chrome.storage.sync.get(['cfg']);
   return { ...DEFAULTS, ...(cfg || {}) };
@@ -32,15 +34,26 @@ async function activeTab() {
   return tab || null;
 }
 
+function videoIdFromUrl(url) {
+  const u = String(url || '');
+  const modal = u.match(/[?&#]modal_id=(\d+)/);
+  if (modal) return modal[1];
+  const dy = u.match(/\/video\/(\d+)/);
+  if (dy) return dy[1];
+  const bv = u.match(/\/video\/(BV[\w]+)/i);
+  if (bv) return bv[1];
+  return null;
+}
+
 /** 只通信，绝不向抖音页热注入大脚本 */
-async function sendCmd(cmd) {
+async function sendCmd(cmd, extra = {}) {
   const tab = await activeTab();
   if (!tab?.id) return { ok: false, error: '无活动标签' };
   if (!isSupportedUrl(tab.url || '')) {
     return { ok: false, error: '请在抖音/B站视频页使用' };
   }
   try {
-    return await chrome.tabs.sendMessage(tab.id, { type: 'MAS_CMD', cmd });
+    return await chrome.tabs.sendMessage(tab.id, { type: 'MAS_CMD', cmd, ...extra });
   } catch {
     return { ok: false, error: '页面未加载插件，请刷新该视频页后再试' };
   }
@@ -57,14 +70,54 @@ function setBlockUi(blocked) {
   hint.textContent = blocked ? '开：本集不会自动跳广告' : '关：本集会跳过广告';
 }
 
+async function resolveVideoId() {
+  if (lastVideoId) return lastVideoId;
+  const tab = await activeTab();
+  const fromUrl = videoIdFromUrl(tab?.url);
+  if (fromUrl) {
+    lastVideoId = fromUrl;
+    return fromUrl;
+  }
+  return null;
+}
+
+/** 弹窗直接改 storage，不依赖页面回包，避免开关弹回 */
+async function writeBlockState(on, videoId) {
+  const id = String(videoId);
+  const { blockBvids = [] } = await chrome.storage.local.get(['blockBvids']);
+  const set = new Set((blockBvids || []).map(String));
+  if (on) set.add(id);
+  else set.delete(id);
+  const next = [...set];
+  await chrome.storage.local.set({ blockBvids: next });
+  return next;
+}
+
 async function refreshStatus() {
+  const tab = await activeTab();
+  const urlId = videoIdFromUrl(tab?.url);
+  if (urlId) lastVideoId = urlId;
+
   const res = await sendCmd('status');
   if (res?.ok) {
+    if (res.videoId) lastVideoId = res.videoId;
     setStatus(res.status || '待命');
-    setBlockUi(!!res.blocked);
+    // 以 storage 为准，避免 content 内存不同步导致关不上
+    const id = lastVideoId || res.videoId;
+    if (id) {
+      const { blockBvids = [] } = await chrome.storage.local.get(['blockBvids']);
+      setBlockUi(blockBvids.map(String).includes(String(id)));
+    } else {
+      setBlockUi(!!res.blocked);
+    }
   } else {
     setStatus(res?.error || '待命');
-    setBlockUi(false);
+    if (lastVideoId) {
+      const { blockBvids = [] } = await chrome.storage.local.get(['blockBvids']);
+      setBlockUi(blockBvids.map(String).includes(String(lastVideoId)));
+    } else {
+      setBlockUi(false);
+    }
   }
 }
 
@@ -82,23 +135,44 @@ document.getElementById('feedSwipe').addEventListener('change', (e) => {
   const on = e.target.checked;
   patch({ douyinFeedAd: on, douyinFeedLive: on });
 });
+
 document.getElementById('blockThis').addEventListener('change', async (e) => {
-  const on = e.target.checked;
-  const res = await sendCmd(on ? 'block' : 'unblock');
-  if (res?.ok) {
-    setStatus(res.status || (on ? '本集已禁用' : '已恢复本集'));
-    setBlockUi(!!res.blocked || on);
-  } else {
-    setStatus(res?.error || '操作失败');
-    e.target.checked = !on;
-    setBlockUi(!on);
+  const on = !!e.target.checked;
+  // 先按用户意图显示，禁止中途弹回
+  setBlockUi(on);
+
+  let videoId = await resolveVideoId();
+  const st = await sendCmd('status');
+  if (st?.videoId) {
+    videoId = st.videoId;
+    lastVideoId = st.videoId;
+  }
+
+  if (!videoId) {
+    setStatus('无法识别视频，请打开具体视频页');
+    setBlockUi(false);
+    return;
+  }
+
+  try {
+    await writeBlockState(on, videoId);
+    // 通知内容脚本同步内存（失败也不弹回开关）
+    const res = await sendCmd(on ? 'block' : 'unblock', { videoId });
+    setStatus(
+      res?.status
+      || (on ? '本集已禁用跳过' : '已恢复本集跳过'),
+    );
+    setBlockUi(on);
+  } catch (err) {
+    setStatus(String(err?.message || err || '操作失败'));
+    setBlockUi(on);
   }
 });
 
 async function run(cmd) {
   const res = await sendCmd(cmd);
   setStatus(res?.status || res?.error || '完成');
-  if (typeof res?.blocked === 'boolean') setBlockUi(res.blocked);
+  await refreshStatus();
 }
 
 document.getElementById('reanalyze').addEventListener('click', () => run('reanalyze'));
