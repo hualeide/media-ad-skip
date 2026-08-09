@@ -78,8 +78,10 @@
     .scrub {
       position: relative;
       z-index: 1;
-      width: min(100%, 520px);
-      margin-bottom: 0.5rem;
+      width: 100%;
+      max-width: 34rem;
+      margin: 0;
+      margin-bottom: 0.25rem;
     }
     .scrub-bar {
       position: relative;
@@ -262,13 +264,47 @@
       list-style: none;
       counter-reset: step;
     }
-    ol.steps li {
+    ol.steps > li {
       position: relative;
       padding: 1rem 0 1rem 2.85rem;
       border-top: 1px solid var(--line);
       color: #c5cbd6;
     }
-    ol.steps li::before {
+    ol.steps > li > strong {
+      display: block;
+      color: var(--text);
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+    ol.steps > li .detail {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    ol.steps > li .detail + .detail { margin-top: 0.4rem; }
+    .check-list {
+      margin: 0.45rem 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .check-list li {
+      position: relative;
+      padding: 0.2rem 0 0.2rem 1.1rem;
+      border: none;
+      color: var(--muted);
+    }
+    .check-list li::before {
+      content: "·";
+      position: absolute;
+      left: 0;
+      top: 0.15rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    ol.steps > li::before {
       counter-increment: step;
       content: counter(step);
       position: absolute;
@@ -366,7 +402,7 @@
     <main>
       <section id="install" aria-labelledby="install-title">
         <h2 id="install-title">安装</h2>
-        <p class="section-lede">下载 ZIP 后解压，选中<strong>里面直接有</strong> <code>manifest.json</code> 的那一层。</p>
+        <p class="section-lede">先点上方「下载扩展 ZIP」。解压后，最终要选中<strong>直接含有</strong> <code>manifest.json</code>、<code>background.js</code>、<code>content/</code> 的那一层（常见文件夹名 <span class="path">extension</span>）。</p>
 
         <div class="tabs" role="tablist" aria-label="安装方式">
           <button type="button" class="tab" role="tab" id="tab-chromium" aria-controls="panel-chromium" aria-selected="true">Chrome / Edge</button>
@@ -376,52 +412,141 @@
 
         <div class="panel" role="tabpanel" id="panel-chromium" aria-labelledby="tab-chromium">
           <ol class="steps">
-            <li>解压 ZIP，记下文件夹路径。</li>
-            <li>打开 <code>chrome://extensions</code> 或 <code>edge://extensions</code>（Brave / Opera / Vivaldi 同理），打开开发者模式。</li>
-            <li>「加载已解压的扩展程序」→ 选含 <code>manifest.json</code> 的目录（常见名 <span class="path">extension</span>）。</li>
-            <li>打开任意 B站视频或抖音网页，点工具栏图标。</li>
+            <li>
+              <strong>下载并解压</strong>
+              <p class="detail">点本页「下载扩展 ZIP」。Windows 可右键 ZIP →「全部解压」到例如 <code>D:\Apps\media-ad-skip</code>。不要只打开压缩包窗口里用，必须解压到真实文件夹。</p>
+              <p class="detail">进解压目录后确认能看到这些（名字可能在子文件夹 <span class="path">extension</span> 里）：</p>
+              <ul class="check-list">
+                <li><code>manifest.json</code>（必有）</li>
+                <li><code>background.js</code>、<code>content/</code>、<code>popup/</code>、<code>icons/</code></li>
+              </ul>
+            </li>
+            <li>
+              <strong>打开扩展管理页</strong>
+              <p class="detail">在地址栏原样输入并回车（复制粘贴即可）：</p>
+              <ul class="check-list">
+                <li>Chrome：<code>chrome://extensions</code></li>
+                <li>Edge：<code>edge://extensions</code></li>
+                <li>Brave：<code>brave://extensions</code></li>
+                <li>Opera：<code>opera://extensions</code></li>
+                <li>Vivaldi：<code>vivaldi://extensions</code></li>
+              </ul>
+            </li>
+            <li>
+              <strong>打开开发者模式</strong>
+              <p class="detail">页面右上角打开「开发者模式 / Developer mode」开关。关掉时看不到「加载已解压」按钮。</p>
+            </li>
+            <li>
+              <strong>加载文件夹</strong>
+              <p class="detail">点「加载已解压的扩展程序 / Load unpacked」。在文件对话框里进入解压后的目录，选中<strong>直接含</strong> <code>manifest.json</code> 的那一层，再点「选择文件夹」。</p>
+              <p class="detail">成功后列表会出现 <strong>Media Ad Skip</strong>，开关为开启。点浏览器工具栏拼图图标，找到它并「固定」，方便以后点。</p>
+            </li>
+            <li>
+              <strong>验证是否生效</strong>
+              <p class="detail">新开一个标签，打开 <a href="https://www.bilibili.com/" target="_blank" rel="noopener">bilibili.com</a> 任意视频页，或 <a href="https://www.douyin.com/" target="_blank" rel="noopener">douyin.com</a>。点工具栏扩展图标：应能看到自动跳过等开关。播放时若命中广告段，右下角会出现 toast（可撤销）。</p>
+            </li>
           </ol>
-          <p class="hint">选仓库根目录会失败：那一层通常没有 <code>manifest.json</code>。</p>
+          <p class="hint">最常见翻车：选成了仓库根目录（外面那一层只有 README，没有 <code>manifest.json</code>）。必须再往里进一层，选到 <span class="path">extension</span>。</p>
         </div>
 
         <div class="panel" role="tabpanel" id="panel-firefox" aria-labelledby="tab-firefox" hidden>
           <ol class="steps">
-            <li>Firefox 121+。解压 ZIP。</li>
-            <li>打开 <code>about:debugging#/runtime/this-firefox</code>。</li>
-            <li>「临时载入附加组件」→ 选目录里的 <code>manifest.json</code>。</li>
-            <li>去 B站 / 抖音用。重启浏览器后需再载一次。</li>
+            <li>
+              <strong>版本与解压</strong>
+              <p class="detail">需要 <strong>Firefox 121 或更高</strong>（菜单 → 帮助 → 关于 Firefox 可看版本）。下载 ZIP 并解压到固定位置，例如 <code>D:\Apps\media-ad-skip\extension</code>。临时加载依赖这个路径，别解压完就删。</p>
+            </li>
+            <li>
+              <strong>打开调试页</strong>
+              <p class="detail">地址栏输入 <code>about:debugging#/runtime/this-firefox</code> 回车。这是 Firefox 的临时扩展入口（不是 <code>about:addons</code>）。</p>
+            </li>
+            <li>
+              <strong>临时载入</strong>
+              <p class="detail">左侧或页面里点「临时载入附加组件 / Load Temporary Add-on…」。在文件选择器里进入解压目录，选中 <code>manifest.json</code> 这个文件（不是选文件夹）。</p>
+              <p class="detail">载入成功后，本页列表会出现 Media Ad Skip。可到工具栏固定图标。</p>
+            </li>
+            <li>
+              <strong>去网站试用</strong>
+              <p class="detail">打开 B站视频页或抖音网页，点扩展图标确认面板出来。若没反应：回到调试页确认扩展还在，关掉旧标签再新开一次。</p>
+            </li>
+            <li>
+              <strong>重启后怎么办</strong>
+              <p class="detail">Firefox 临时附加组件<strong>关浏览器就会卸掉</strong>。下次打开 Firefox，再走一遍「调试页 → 临时载入 → 选同一份 <code>manifest.json</code>」即可。路径别改，会省事很多。</p>
+            </li>
           </ol>
+          <p class="hint">若提示不支持 <code>service_worker</code>：升级到 121+。本包已同时声明 <code>background.scripts</code>，新版 Firefox 可直接用。</p>
         </div>
 
         <div class="panel" role="tabpanel" id="panel-tm" aria-labelledby="tab-tm" hidden>
           <ol class="steps">
-            <li>先装 Tampermonkey 或 Violentmonkey。</li>
-            <li>点上方「改用油猴」，在管理器里确认安装。</li>
-            <li>打开 B站 / 抖音即可；脚本带自动更新检查。</li>
+            <li>
+              <strong>先装脚本管理器</strong>
+              <p class="detail">任选其一（商店搜索安装即可）：</p>
+              <ul class="check-list">
+                <li><strong>Tampermonkey</strong>（Chrome / Edge / Firefox 都常见）</li>
+                <li><strong>Violentmonkey</strong>（开源替代）</li>
+              </ul>
+              <p class="detail">装好后工具栏会出现管理器图标。确认它对当前浏览器已启用。</p>
+            </li>
+            <li>
+              <strong>安装本脚本</strong>
+              <p class="detail">回到本页，点上方「改用油猴」。浏览器会打开脚本源码页或弹出安装确认。在管理器对话框里点「安装 / Install」。</p>
+              <p class="detail">若只打开了源码没有安装按钮：在管理器里新建脚本，把源码全文粘贴保存；或从仓库打开 <a href="https://github.com/hualeide/media-ad-skip/blob/master/media-ad-skip.user.js" target="_blank" rel="noopener">media-ad-skip.user.js</a> 用「Raw」再装。</p>
+            </li>
+            <li>
+              <strong>确认匹配站点</strong>
+              <p class="detail">打开管理器 → 找到 Media Ad Skip → 确认已启用。脚本应匹配 bilibili / douyin 相关页面（含 bangumi、稍后再看、手机站等）。</p>
+            </li>
+            <li>
+              <strong>试用</strong>
+              <p class="detail">新开 B站或抖音标签。管理器图标上通常会显示「有脚本在跑」。播放含恰饭段的视频时会自动 seek；也可在管理器菜单里找相关命令（若有注册）。</p>
+            </li>
+            <li>
+              <strong>更新</strong>
+              <p class="detail">脚本写了 <code>@updateURL</code>。Tampermonkey 会定期检查；也可在管理器里对该脚本点「检查更新」。一般不用手动再下 ZIP。</p>
+            </li>
           </ol>
-          <p class="soft">扩展有设置页和更新角标；油猴更省事。</p>
+          <p class="soft">油猴更省事（不用开发者模式）。扩展则有独立设置页、更新角标、信息流等开关更集中。两套核心逻辑同源，装一种即可。</p>
         </div>
       </section>
 
       <section id="update" aria-labelledby="update-title">
-        <h2 id="update-title">更新</h2>
-        <p class="section-lede">本地加载不会静默升级。扩展每天查 GitHub，有新版图标角标 ↑。</p>
+        <h2 id="update-title">以后怎么更新（扩展）</h2>
+        <p class="section-lede">「加载已解压」不会像商店扩展那样静默升级。扩展每天查一次 GitHub；有新版时工具栏图标角标显示 <strong>↑</strong>，弹窗里也可点检查更新。</p>
         <ol class="steps">
-          <li>再下最新 ZIP（本页或 <a href="https://github.com/hualeide/media-ad-skip/releases/latest">Releases</a>）。</li>
-          <li>覆盖本地扩展目录 → 扩展页「重新加载」。</li>
-          <li>关掉旧的 B站 / 抖音标签再开。</li>
+          <li>
+            <strong>下载新包</strong>
+            <p class="detail">从本页再下最新 ZIP，或打开 <a href="https://github.com/hualeide/media-ad-skip/releases/latest" target="_blank" rel="noopener">Releases</a> 选最新资源。</p>
+          </li>
+          <li>
+            <strong>覆盖文件</strong>
+            <p class="detail">用新解压出的文件<strong>覆盖</strong>你当初加载的那个扩展目录（同一路径）。不要另建一份新目录又加载一次，否则会出现两个 Media Ad Skip。</p>
+          </li>
+          <li>
+            <strong>重新加载扩展</strong>
+            <p class="detail">回到 <code>chrome://extensions</code>（或对应浏览器），在 Media Ad Skip 卡片上点「重新加载 / Reload」圆形箭头。</p>
+          </li>
+          <li>
+            <strong>刷新网站标签</strong>
+            <p class="detail">关掉所有旧的 B站 / 抖音标签，再新开。只刷新有时仍跑旧 content script。</p>
+          </li>
         </ol>
       </section>
 
       <section id="faq" aria-labelledby="faq-title">
         <h2 id="faq-title">常见问题</h2>
         <dl class="faq">
-          <dt>扩展装了，页面没反应？</dt>
-          <dd>确认域名是 bilibili.com / douyin.com；重载扩展后新开标签。</dd>
-          <dt>抖音卡顿？</dt>
-          <dd>选项里先关「信息流广告 / 直播卡」，尽量进具体视频页。</dd>
-          <dt>支持 App 或其它网站吗？</dt>
-          <dd>不支持。只做 B站与抖音网页版。</dd>
+          <dt>加载时报错 / 找不到 manifest？</dt>
+          <dd>选的文件夹不对。在资源管理器里打开该文件夹，确认第一层就有 <code>manifest.json</code>。Release 解压后通常是 <span class="path">…/extension/</span>；若下的是整个仓库 ZIP，还要再进一层 <span class="path">media-ad-skip/extension/</span>。</dd>
+          <dt>扩展在列表里，打开视频却没反应？</dt>
+          <dd>① 确认网址是 <code>bilibili.com</code> / <code>douyin.com</code>（其它站不会注入）。② 扩展页点重新加载。③ 关掉旧标签再新开。④ 点扩展图标看开关是否开启「自动跳过」。</dd>
+          <dt>抖音页面卡顿、发烫？</dt>
+          <dd>打开扩展「选项」，先关掉「信息流广告 / 直播卡 / 购物卡」划走；尽量进具体视频页再测。首页推荐流 DOM 重，划走逻辑更吃性能。</dd>
+          <dt>误跳了正片怎么办？</dt>
+          <dd>右下角 toast 点「撤销」可 seek 回去；也可对本集开「本集不跳」。觉得某段标错了，可用「标错了」记到本地反馈。</dd>
+          <dt>支持手机 App 或其它视频站吗？</dt>
+          <dd>不支持。只做 B站与抖音<strong>网页版</strong>。</dd>
+          <dt>会不会上传我的观看记录？</dt>
+          <dd>不会。设置存在浏览器本地；会访问的公开接口包括 SponsorBlock、B站公开 API、GitHub 版本检查。详见 <a href="https://github.com/hualeide/media-ad-skip/blob/master/extension/PRIVACY.md" target="_blank" rel="noopener">隐私说明</a>。</dd>
         </dl>
       </section>
     </main>
