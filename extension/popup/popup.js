@@ -4,9 +4,9 @@ const DEFAULTS = {
   showUndoToast: true,
   useSponsorBlock: true,
   douyinInVideo: true,
-  douyinFeedAd: true,
+  douyinFeedAd: false,
   douyinFeedLive: true,
-  douyinFeedShop: true,
+  douyinFeedShop: false,
   biliInVideo: true,
   countdownSec: 3,
   softOralSkipSec: 35,
@@ -124,9 +124,12 @@ async function refreshStatus() {
 document.getElementById('autoSkip').addEventListener('change', (e) => {
   patch({ autoSkip: e.target.checked });
 });
-document.getElementById('feedSwipe').addEventListener('change', (e) => {
+document.getElementById('feedAd').addEventListener('change', (e) => {
   const on = e.target.checked;
-  patch({ douyinFeedAd: on, douyinFeedLive: on, douyinFeedShop: on });
+  patch({ douyinFeedAd: on, douyinFeedShop: on });
+});
+document.getElementById('feedLive').addEventListener('change', (e) => {
+  patch({ douyinFeedLive: e.target.checked });
 });
 
 document.getElementById('blockThis').addEventListener('change', async (e) => {
@@ -222,7 +225,8 @@ document.getElementById('updateOpen').addEventListener('click', () => {
 async function load() {
   const c = await getCfg();
   document.getElementById('autoSkip').checked = c.autoSkip !== false;
-  document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive || c.douyinFeedShop);
+  document.getElementById('feedAd').checked = !!(c.douyinFeedAd || c.douyinFeedShop);
+  document.getElementById('feedLive').checked = !!c.douyinFeedLive;
   await refreshStatus();
   await refreshUpdate(false);
   // 打开弹窗时轻量检查（后台有缓存）

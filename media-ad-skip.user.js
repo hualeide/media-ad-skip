@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.27
+// @version      1.5.28
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.27') return;
-  window.__MAS_VER__ = '1.5.27';
+  if (window.__MAS_VER__ === '1.5.28') return;
+  window.__MAS_VER__ = '1.5.28';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -52,9 +52,9 @@
   const DEFAULTS = {
     autoSkip: true,
     showPanel: false,
-    douyinFeedAd: true,
+    douyinFeedAd: false,
     douyinFeedLive: true,
-    douyinFeedShop: true,
+    douyinFeedShop: false,
     douyinInVideo: true,
     biliInVideo: true,
     feedPollMs: 700,
@@ -1623,10 +1623,10 @@
     const adHit = card.ad || isFeedAdLike(text);
     let shouldSkip = false;
     let reason = '';
-    // 开「划走广告」时一并划带货购物条（「购物 | 品牌」）
-    if (cfg.douyinFeedAd && (adHit || shopHit)) {
+    // 广告 / 购物 / 直播分开；开广告时不自动带上购物（购物有独立开关）
+    if (cfg.douyinFeedAd && adHit) {
       shouldSkip = true;
-      reason = shopHit && !adHit ? '带货购物' : '信息流广告';
+      reason = '信息流广告';
     } else if (cfg.douyinFeedShop && shopHit) {
       shouldSkip = true;
       reason = '购物卡';
@@ -2047,7 +2047,7 @@
     if (!shouldAnalyzeDouyinInVideo()) {
       setStatus(isDouyinDetailContext()
         ? '等待播放器…'
-        : '推荐流待命（仅监视跳过按钮；划走广告默认关）');
+        : '推荐流待命（片内分析需进视频页；广告划走默认关）');
       return;
     }
     const v = getVideoEl();
