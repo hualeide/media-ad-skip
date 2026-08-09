@@ -10,8 +10,8 @@ const DEFAULT_BRAND_KW = [
 const DEFAULTS = {
   autoSkip: true,
   showPanel: false,
-  douyinFeedAd: true,
-  douyinFeedLive: true,
+  douyinFeedAd: false,
+  douyinFeedLive: false,
   douyinFeedShop: false,
   douyinInVideo: true,
   biliInVideo: true,

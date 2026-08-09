@@ -1,8 +1,8 @@
 /* Media Ad Skip — MV3 service worker */
 chrome.runtime.onInstalled.addListener(async (details) => {
-  if (details.reason === 'install') {
-    try {
-      const { cfg } = await chrome.storage.sync.get(['cfg']);
+  try {
+    const { cfg } = await chrome.storage.sync.get(['cfg']);
+    if (details.reason === 'install') {
       // 仅首次安装写默认；升级不覆盖用户已改的 showPanel 等项
       if (!cfg || typeof cfg !== 'object') {
         await chrome.storage.sync.set({
@@ -12,19 +12,32 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             showUndoToast: true,
             useSponsorBlock: true,
             douyinInVideo: true,
-            douyinFeedAd: true,
-            douyinFeedLive: true,
+            douyinFeedAd: false,
+            douyinFeedLive: false,
             douyinFeedShop: false,
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
             feedPollMs: 900,
+            crashSafe131: true,
           },
         });
       }
-    } catch { /* ignore */ }
-    chrome.runtime.openOptionsPage();
-  }
+      chrome.runtime.openOptionsPage();
+      return;
+    }
+    // 1.5.13：默认关掉信息流划走，减轻未登录首页崩溃；用户可在选项再打开
+    if (details.reason === 'update' && cfg && typeof cfg === 'object' && cfg.crashSafe131 !== true) {
+      await chrome.storage.sync.set({
+        cfg: {
+          ...cfg,
+          douyinFeedAd: false,
+          douyinFeedLive: false,
+          crashSafe131: true,
+        },
+      });
+    }
+  } catch { /* ignore */ }
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

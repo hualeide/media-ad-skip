@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.12
+// @version      1.5.13
 // @description  B站/抖音网页版广告跳过：SponsorBlock、字幕品牌词、官方广告看点；可撤销
 // @author       media-ad-skip
 // @match        *://www.bilibili.com/video/*
@@ -22,8 +22,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.12') return;
-  window.__MAS_VER__ = '1.5.12';
+  if (window.__MAS_VER__ === '1.5.13') return;
+  window.__MAS_VER__ = '1.5.13';
   window.__MAS_LOADED__ = true;
 
   const HOST = location.hostname;
@@ -42,8 +42,8 @@
   const DEFAULTS = {
     autoSkip: true,
     showPanel: false,
-    douyinFeedAd: true,
-    douyinFeedLive: true,
+    douyinFeedAd: false,
+    douyinFeedLive: false,
     douyinFeedShop: false,
     douyinInVideo: true,
     biliInVideo: true,
@@ -1390,8 +1390,9 @@
   }
 
   let lastFeedSkipAt = 0;
+  let feedTextTick = 0;
   function douyinFeedTick() {
-    if (!IS_DOUYIN) return;
+    if (!IS_DOUYIN || document.hidden) return;
     const now = Date.now();
     if (now - lastFeedSkipAt < 1200) return;
 
@@ -1429,6 +1430,11 @@
 
     // 详情页不做信息流划走，避免误触
     if (onVideoPage) return;
+    if (!cfg.douyinFeedAd && !cfg.douyinFeedLive && !cfg.douyinFeedShop) return;
+
+    // 划走读卡降频：未登录首页水合时全量扫极易崩
+    feedTextTick += 1;
+    if (feedTextTick % 3 !== 0) return;
 
     const text = douyinCurrentCardText();
     let shouldSkip = false;
@@ -1671,15 +1677,19 @@
   }
 
   function tryReadDouyinEmbedded(awemeId) {
+    if (!awemeId) return null;
+    // 推荐流首页 RENDER_DATA 极大，未登录也常有；禁止在非详情上下文解析
+    if (!isDouyinDetailContext()) return null;
     try {
       const scripts = document.querySelectorAll('script#RENDER_DATA, script[id*="RENDER"]');
       for (const s of scripts) {
         let raw = s.textContent || '';
-        // 超大内嵌 JSON 全量 parse 易卡死主线程
-        if (raw.length > 1_200_000) continue;
+        // 更严：超过约 400KB 直接放弃，避免 JSON.parse 卡死标签
+        if (raw.length > 400_000) continue;
         try { raw = decodeURIComponent(raw); } catch { /* keep raw */ }
-        if (raw.length > 1_200_000) continue;
-        if (!raw.includes('chapter_list') && !raw.includes('subtitle') && !raw.includes(String(awemeId || ''))) continue;
+        if (raw.length > 400_000) continue;
+        if (!raw.includes(String(awemeId))) continue;
+        if (!raw.includes('chapter_list') && !raw.includes('subtitle')) continue;
         const j = JSON.parse(raw);
         const found = findAwemeInObj(j, awemeId);
         if (found) return packDouyinDetail(found, false);
@@ -1781,6 +1791,21 @@
     return null;
   }
 
+  /** 详情页 / 弹窗详情：才允许重分析与读 RENDER_DATA */
+  function isDouyinDetailContext() {
+    return /\/video\/\d+/.test(location.pathname)
+      || /[?&#]modal_id=\d+/.test(location.href);
+  }
+
+  /** 推荐流未登录首页不要做片内分析（易在水合阶段崩） */
+  function shouldAnalyzeDouyinInVideo() {
+    if (!cfg.douyinInVideo) return false;
+    if (isDouyinDetailContext()) return true;
+    const v = getVideoEl();
+    const dur = v?.duration;
+    return !!(v && Number.isFinite(dur) && dur >= 45);
+  }
+
   /** 进度条附近的「第N章：标题」 */
   function readDomChapterHint() {
     const root = document.querySelector('.xgplayer')
@@ -1830,6 +1855,12 @@
       return;
     }
     if (!cfg.douyinInVideo) return;
+    if (!shouldAnalyzeDouyinInVideo()) {
+      setStatus(isDouyinDetailContext()
+        ? '等待播放器…'
+        : '推荐流待命（仅监视跳过按钮；划走广告默认关）');
+      return;
+    }
     const v = getVideoEl();
     const duration = v?.duration && Number.isFinite(v.duration) ? v.duration : 0;
     if (duration && duration < 45) {
@@ -1999,24 +2030,36 @@
   }
 
   function observeSpa(cb) {
-    let href = location.href;
-    let aweme = IS_DOUYIN && typeof getDouyinAwemeId === 'function' ? getDouyinAwemeId() : null;
+    let key = location.pathname + location.search;
+    let lastAweme = '';
+    let awemeProbeAt = 0;
     setInterval(() => {
-      const nextHref = location.href;
-      const nextAweme = IS_DOUYIN && typeof getDouyinAwemeId === 'function' ? getDouyinAwemeId() : null;
-      if (nextHref !== href || (nextAweme && nextAweme !== aweme)) {
-        href = nextHref;
-        aweme = nextAweme;
-        cb();
+      if (document.hidden) return;
+      const nextKey = location.pathname + location.search;
+      let changed = nextKey !== key;
+      // 抖音：不在推荐流每 800ms 扫 DOM 取 aweme；详情页再探
+      if (IS_DOUYIN && isDouyinDetailContext() && Date.now() - awemeProbeAt > 1500) {
+        awemeProbeAt = Date.now();
+        const id = typeof getDouyinAwemeId === 'function' ? (getDouyinAwemeId() || '') : '';
+        if (id && id !== lastAweme) {
+          lastAweme = id;
+          changed = true;
+        }
       }
-    }, 800);
-    const wrap = (fn) => function (...args) {
-      const r = fn.apply(this, args);
-      queueMicrotask(cb);
-      return r;
-    };
-    history.pushState = wrap(history.pushState.bind(history));
-    history.replaceState = wrap(history.replaceState.bind(history));
+      if (!changed) return;
+      key = nextKey;
+      cb();
+    }, IS_DOUYIN ? 1200 : 800);
+    // 抖音勿劫持 history：与站点 SPA 抢 pushState 易整页崩
+    if (!IS_DOUYIN) {
+      const wrap = (fn) => function (...args) {
+        const r = fn.apply(this, args);
+        queueMicrotask(cb);
+        return r;
+      };
+      history.pushState = wrap(history.pushState.bind(history));
+      history.replaceState = wrap(history.replaceState.bind(history));
+    }
     window.addEventListener('popstate', cb);
   }
 
@@ -2084,7 +2127,8 @@
 
   function boot() {
     bindExtCommands();
-    ensureToastStyles();
+    // toast 样式延后：抖音首页水合时少动 DOM
+    if (!IS_DOUYIN) ensureToastStyles();
     ensurePanel();
     registerMenu();
     watchPlayback();
@@ -2099,15 +2143,28 @@
       kick();
       observeSpa(kick);
     } else if (IS_DOUYIN) {
-      setStatus('抖音模式');
-      startFeedPoll();
+      setStatus('抖音模式（稳）');
       const kick = () => {
         resetPlaybackState();
+        if (!shouldAnalyzeDouyinInVideo()) {
+          setStatus('推荐流待命（点进视频页再分析片内广告）');
+          return;
+        }
         setStatus('切换视频…');
-        setTimeout(() => douyinAnalyzeInVideo(), 1200);
+        setTimeout(() => douyinAnalyzeInVideo(), 1500);
       };
-      kick();
-      observeSpa(kick);
+      // 等页面先站稳再挂轮询/分析，未登录首页尤其必要
+      const start = () => {
+        ensureToastStyles();
+        startFeedPoll();
+        kick();
+        observeSpa(kick);
+      };
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => setTimeout(start, 1800), { timeout: 4000 });
+      } else {
+        setTimeout(start, 2200);
+      }
     } else {
       setStatus('未识别站点');
     }
