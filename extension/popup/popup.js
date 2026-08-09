@@ -10,7 +10,7 @@ const DEFAULTS = {
   biliInVideo: true,
   countdownSec: 3,
   softOralSkipSec: 35,
-  feedPollMs: 700,
+  feedPollMs: 1200,
 };
 
 let lastVideoId = null;

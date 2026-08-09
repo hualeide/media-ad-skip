@@ -15,7 +15,7 @@ const DEFAULTS = {
   douyinFeedShop: true,
   douyinInVideo: true,
   biliInVideo: true,
-  feedPollMs: 700,
+  feedPollMs: 1200,
   countdownSec: 3,
   softOralSkipSec: 35,
   useSponsorBlock: true,

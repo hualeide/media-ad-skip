@@ -119,7 +119,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
-            feedPollMs: 700,
+            feedPollMs: 1200,
             crashSafe131: true,
             feedSwipe1520: true,
             feedSwipe1523: true,
