@@ -12,7 +12,7 @@ const DEFAULTS = {
   showPanel: false,
   douyinFeedAd: true,
   douyinFeedLive: true,
-  douyinFeedShop: false,
+  douyinFeedShop: true,
   douyinInVideo: true,
   biliInVideo: true,
   feedPollMs: 700,

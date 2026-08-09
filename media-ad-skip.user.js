@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.22
+// @version      1.5.23
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -26,8 +26,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.22') return;
-  window.__MAS_VER__ = '1.5.22';
+  if (window.__MAS_VER__ === '1.5.23') return;
+  window.__MAS_VER__ = '1.5.23';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -51,7 +51,7 @@
     showPanel: false,
     douyinFeedAd: true,
     douyinFeedLive: true,
-    douyinFeedShop: false,
+    douyinFeedShop: true,
     douyinInVideo: true,
     biliInVideo: true,
     feedPollMs: 700,
@@ -1471,8 +1471,9 @@
       if (t === '广告' || t === '广告.' || /^广告$/.test(t)) out.ad = true;
       // 「直播」二字常见于头像角标 → 忽略；只要完整进房文案
       if (isStrongLiveRoomText(t) && !isNearAvatarOrFollow(el)) out.live = true;
-      if (/^(立即购买|商品橱窗|去购买)$/.test(t)) out.shop = true;
-      if (out.ad && out.live) break;
+      // 「购物 | 商品名」带货入口
+      if (/^购物\s*[|｜]/.test(t) || /^(立即购买|商品橱窗|去购买|购物)$/.test(t)) out.shop = true;
+      if (out.ad && out.live && out.shop) break;
     }
     return out;
   }
@@ -1491,7 +1492,8 @@
   }
 
   function isFeedShop(text) {
-    return /购物|商品橱窗|立即购买|去购买|下单/.test(text || '') && !/广告/.test(text || '');
+    // 「购物 | xxx」是抖音带货条，不要要求同时出现「广告」字样
+    return /购物\s*[|｜]|商品橱窗|立即购买|去购买|小黄车|橱窗/.test(text || '');
   }
 
   let lastFeedSkipAt = 0;
@@ -1501,8 +1503,6 @@
     if (!cfg.douyinFeedAd && !cfg.douyinFeedLive && !cfg.douyinFeedShop && !cfg.douyinInVideo) return;
     const now = Date.now();
     if (now - lastFeedSkipAt < 900) return;
-
-    const onVideoPage = /\/video\//.test(location.pathname);
 
     // 官方中插/贴片：自动点跳过（勿匹配裸「跳过」）
     if (cfg.douyinInVideo) {
@@ -1534,23 +1534,25 @@
       }
     }
 
-    // 详情页不做信息流划走，避免误触
-    if (onVideoPage) return;
+    // 推荐流 / 视频页竖滑：仅在命中广告·带货·真直播时划走（不再因 /video/ 整页禁用）
     if (!cfg.douyinFeedAd && !cfg.douyinFeedLive && !cfg.douyinFeedShop) return;
 
     const card = inspectActiveFeedCard();
     const text = card.text || douyinCurrentCardText();
+    const shopHit = card.shop || isFeedShop(text);
+    const adHit = card.ad || isFeedAdLike(text);
     let shouldSkip = false;
     let reason = '';
-    if (cfg.douyinFeedAd && (card.ad || isFeedAdLike(text))) {
+    // 开「划走广告」时一并划带货购物条（「购物 | 品牌」）
+    if (cfg.douyinFeedAd && (adHit || shopHit)) {
       shouldSkip = true;
-      reason = '信息流广告';
+      reason = shopHit && !adHit ? '带货购物' : '信息流广告';
+    } else if (cfg.douyinFeedShop && shopHit) {
+      shouldSkip = true;
+      reason = '购物卡';
     } else if (cfg.douyinFeedLive && (card.live || isFeedLive(text))) {
       shouldSkip = true;
       reason = '直播卡';
-    } else if (cfg.douyinFeedShop && (card.shop || isFeedShop(text))) {
-      shouldSkip = true;
-      reason = '购物卡';
     }
     if (!shouldSkip) return;
 

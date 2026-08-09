@@ -6,7 +6,7 @@ const DEFAULTS = {
   douyinInVideo: true,
   douyinFeedAd: true,
   douyinFeedLive: true,
-  douyinFeedShop: false,
+  douyinFeedShop: true,
   biliInVideo: true,
   countdownSec: 3,
   softOralSkipSec: 35,
@@ -126,7 +126,7 @@ document.getElementById('autoSkip').addEventListener('change', (e) => {
 });
 document.getElementById('feedSwipe').addEventListener('change', (e) => {
   const on = e.target.checked;
-  patch({ douyinFeedAd: on, douyinFeedLive: on });
+  patch({ douyinFeedAd: on, douyinFeedLive: on, douyinFeedShop: on });
 });
 
 document.getElementById('blockThis').addEventListener('change', async (e) => {
@@ -222,7 +222,7 @@ document.getElementById('updateOpen').addEventListener('click', () => {
 async function load() {
   const c = await getCfg();
   document.getElementById('autoSkip').checked = c.autoSkip !== false;
-  document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive);
+  document.getElementById('feedSwipe').checked = !!(c.douyinFeedAd || c.douyinFeedLive || c.douyinFeedShop);
   await refreshStatus();
   await refreshUpdate(false);
   // 打开弹窗时轻量检查（后台有缓存）

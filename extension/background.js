@@ -115,13 +115,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             douyinInVideo: true,
             douyinFeedAd: true,
             douyinFeedLive: true,
-            douyinFeedShop: false,
+            douyinFeedShop: true,
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
             feedPollMs: 700,
             crashSafe131: true,
             feedSwipe1520: true,
+            feedSwipe1523: true,
           },
         });
       }
@@ -133,11 +134,15 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         next.crashSafe131 = true;
         dirty = true;
       }
-      // 1.5.20：默认打开信息流划走（用户要的功能）；仅迁移一次
       if (cfg.feedSwipe1520 !== true) {
         next.douyinFeedAd = true;
         next.douyinFeedLive = true;
         next.feedSwipe1520 = true;
+        dirty = true;
+      }
+      if (cfg.feedSwipe1523 !== true) {
+        next.douyinFeedShop = true;
+        next.feedSwipe1523 = true;
         dirty = true;
       }
       if (dirty) await chrome.storage.sync.set({ cfg: next });
