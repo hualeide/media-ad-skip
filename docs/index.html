@@ -4,231 +4,235 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Media Ad Skip · 安装</title>
-  <meta name="description" content="B站 / 抖音网页版广告跳过。一页装完 Chromium 扩展、Firefox 或油猴。" />
+  <meta name="description" content="B站 / 抖音网页版自动跳过片内广告。下载扩展或油猴，三步装上。" />
+  <meta name="theme-color" content="#0b0d10" />
   <link rel="icon" href="icon.png" type="image/png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --ink: #1a1814;
-      --muted: #5c574e;
-      --paper: #f7f3ea;
-      --sand: #ebe4d6;
-      --line: #d4cbb8;
-      --skip: #e85d04;
-      --skip-deep: #c44d00;
-      --ok: #2a6f4e;
-      --focus: #1a5fb4;
-      --radius: 2px;
-      --font-display: "Instrument Sans", "Noto Sans SC", system-ui, sans-serif;
-      --font-body: "Noto Sans SC", "Instrument Sans", system-ui, sans-serif;
+      --bg: #0b0d10;
+      --bg-lift: #12151a;
+      --panel: #161a21;
+      --line: #2a303a;
+      --text: #e8ecf1;
+      --muted: #8b93a1;
+      --accent: #ff6b2c;
+      --accent-dim: #ff6b2c33;
+      --ok: #3ecf8e;
+      --focus: #5b9dff;
+      --font-display: "Outfit", "Noto Sans SC", system-ui, sans-serif;
+      --font-body: "Noto Sans SC", "Outfit", system-ui, sans-serif;
+      --r: 6px;
     }
 
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      color: var(--ink);
-      background: var(--paper);
+      min-height: 100dvh;
+      color: var(--text);
+      background: var(--bg);
       font-family: var(--font-body);
       font-size: 16px;
-      line-height: 1.55;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
-    a { color: var(--skip-deep); }
-    a:hover { color: var(--ink); }
-    :focus-visible {
-      outline: 2px solid var(--focus);
-      outline-offset: 3px;
-    }
+    a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: #ff8f5c; }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
-    .noise {
-      pointer-events: none;
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      opacity: 0.04;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    }
-
-    .wrap {
-      position: relative;
-      z-index: 1;
-      max-width: 720px;
+    .page {
+      max-width: 880px;
       margin: 0 auto;
       padding: 0 1.25rem 4rem;
     }
 
-    /* —— Hero: full-bleed timeline plane —— */
+    /* —— Hero —— */
     .hero {
       position: relative;
-      min-height: min(92vh, 720px);
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: 1.25rem 0 2.5rem;
-      margin: 0 -1.25rem 2.5rem;
-      padding-left: 1.25rem;
-      padding-right: 1.25rem;
+      margin: 0 -1.25rem 2.75rem;
+      padding: clamp(2rem, 6vw, 3.5rem) 1.25rem 2.25rem;
+      min-height: min(88dvh, 640px);
+      display: grid;
+      align-content: end;
+      gap: 1.75rem;
       overflow: hidden;
       background:
-        radial-gradient(120% 80% at 80% 0%, #ffe8d6 0%, transparent 55%),
-        linear-gradient(180deg, #fff9f0 0%, var(--paper) 70%);
+        radial-gradient(ellipse 70% 55% at 15% 0%, #1a120e 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 20%, #0e1620 0%, transparent 55%),
+        linear-gradient(180deg, #0e1014 0%, var(--bg) 100%);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.35;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+      mix-blend-mode: overlay;
     }
 
-    .timeline {
-      position: absolute;
-      inset: 12% 0 auto;
-      height: 42%;
-      pointer-events: none;
+    /* 对齐的时间轴：三段同宽栅格，标签与色块一一对应 */
+    .scrub {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 520px);
+      margin-bottom: 0.5rem;
     }
-    .timeline-track {
-      position: absolute;
-      left: 8%;
-      right: 8%;
-      top: 48%;
-      height: 3px;
-      background: var(--line);
-      border-radius: 2px;
+    .scrub-bar {
+      position: relative;
+      display: grid;
+      grid-template-columns: 2fr 1.2fr 2fr;
+      height: 6px;
+      border-radius: 999px;
+      overflow: visible;
+      background: transparent;
+      gap: 0;
     }
-    .timeline-gap {
-      position: absolute;
-      left: 38%;
-      width: 18%;
-      top: 48%;
-      height: 3px;
-      background: var(--skip);
-      transform-origin: left center;
-      animation: gap-pulse 3.2s ease-in-out infinite;
+    .scrub-bar > i {
+      display: block;
+      height: 6px;
+      background: #3a4150;
     }
-    .playhead {
+    .scrub-bar > i:first-child { border-radius: 999px 0 0 999px; }
+    .scrub-bar > i:last-child { border-radius: 0 999px 999px 0; }
+    .scrub-bar > i.ad {
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent-dim);
+    }
+    .scrub-head {
       position: absolute;
-      left: 22%;
-      top: 48%;
+      top: 50%;
       width: 14px;
       height: 14px;
-      margin: -5.5px 0 0;
+      margin-top: -7px;
+      margin-left: -7px;
       border-radius: 50%;
-      background: var(--ink);
-      box-shadow: 0 0 0 4px rgba(232, 93, 4, 0.25);
-      animation: skip-ahead 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      background: #fff;
+      box-shadow: 0 0 0 4px var(--accent-dim);
+      /* 落在广告段中点：前 2/(2+1.2+2)=38.46%，段宽 23.08%，中点 ≈ 50% */
+      left: 50%;
+      animation: scrub-jump 3.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
     }
-    .tick {
-      position: absolute;
-      top: calc(48% + 14px);
-      font-size: 0.7rem;
-      letter-spacing: 0.04em;
-      color: var(--muted);
+    @keyframes scrub-jump {
+      0%, 22% { left: 38.5%; }
+      38%, 62% { left: 61.5%; }
+      78%, 100% { left: 38.5%; }
+    }
+    .scrub-labels {
+      display: grid;
+      grid-template-columns: 2fr 1.2fr 2fr;
+      margin-top: 0.65rem;
       font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
-    .tick-a { left: 10%; }
-    .tick-b { left: 55%; color: var(--skip-deep); font-weight: 600; }
-    .tick-c { right: 10%; }
-
-    @keyframes skip-ahead {
-      0%, 18% { left: 22%; }
-      42%, 58% { left: 56%; }
-      82%, 100% { left: 22%; }
+    .scrub-labels span {
+      text-align: center;
+      white-space: nowrap;
     }
-    @keyframes gap-pulse {
-      0%, 100% { opacity: 0.55; transform: scaleX(1); }
-      40% { opacity: 1; transform: scaleX(1.05); }
+    .scrub-labels span.ad {
+      color: var(--accent);
+      font-weight: 600;
     }
     @media (prefers-reduced-motion: reduce) {
-      .playhead, .timeline-gap { animation: none; }
-      .playhead { left: 56%; }
+      .scrub-head { animation: none; left: 61.5%; }
     }
 
+    .hero-copy { position: relative; z-index: 1; max-width: 34rem; }
     .brand {
-      position: relative;
+      margin: 0 0 0.85rem;
       font-family: var(--font-display);
-      font-weight: 700;
-      font-size: clamp(2.4rem, 8vw, 3.6rem);
-      letter-spacing: -0.03em;
+      font-weight: 800;
+      font-size: clamp(2.6rem, 9vw, 4rem);
+      letter-spacing: -0.035em;
       line-height: 1.05;
-      margin: 0 0 0.75rem;
     }
-    .brand span {
-      display: inline-block;
-      color: var(--skip);
+    .brand em {
+      font-style: normal;
+      color: var(--accent);
+    }
+    .headline {
+      margin: 0 0 0.65rem;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: clamp(1.15rem, 3.2vw, 1.45rem);
+      letter-spacing: -0.02em;
+      line-height: 1.35;
+      color: var(--text);
     }
     .lede {
-      position: relative;
-      max-width: 28rem;
       margin: 0 0 1.5rem;
       color: var(--muted);
-      font-size: 1.05rem;
+      font-size: 0.98rem;
+      max-width: 32rem;
     }
     .cta-row {
-      position: relative;
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 0.7rem;
       align-items: center;
     }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.4rem;
-      padding: 0.85rem 1.25rem;
-      border: none;
-      border-radius: var(--radius);
+      padding: 0.8rem 1.2rem;
+      border-radius: var(--r);
       font-family: var(--font-body);
       font-size: 0.95rem;
-      font-weight: 600;
+      font-weight: 700;
       text-decoration: none;
+      border: none;
       cursor: pointer;
-      transition: transform 0.18s ease, background 0.18s ease;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
     }
     .btn:active { transform: translateY(1px); }
     .btn-primary {
-      background: var(--skip);
-      color: #fff;
+      background: var(--accent);
+      color: #140a05;
     }
-    .btn-primary:hover {
-      background: var(--skip-deep);
-      color: #fff;
-    }
+    .btn-primary:hover { background: #ff824d; color: #140a05; }
     .btn-ghost {
       background: transparent;
-      color: var(--ink);
-      border: 1.5px solid var(--ink);
+      color: var(--text);
+      border: 1px solid var(--line);
     }
     .btn-ghost:hover {
-      background: var(--ink);
-      color: var(--paper);
+      border-color: #4a5363;
+      background: var(--bg-lift);
+      color: var(--text);
     }
     .ver {
+      font-family: var(--font-display);
       font-size: 0.8rem;
       color: var(--muted);
-      font-family: var(--font-display);
+      letter-spacing: 0.02em;
     }
 
-    /* —— Install —— */
-    section {
-      margin-bottom: 2.75rem;
-    }
+    section { margin-bottom: 2.75rem; }
     h2 {
+      margin: 0 0 0.4rem;
       font-family: var(--font-display);
-      font-size: 1.35rem;
+      font-size: 1.25rem;
       font-weight: 700;
       letter-spacing: -0.02em;
-      margin: 0 0 0.35rem;
     }
     .section-lede {
-      margin: 0 0 1.25rem;
+      margin: 0 0 1.15rem;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 0.92rem;
     }
 
     .tabs {
       display: flex;
-      gap: 0.35rem;
-      margin-bottom: 1rem;
+      gap: 0;
+      margin-bottom: 0;
       border-bottom: 1px solid var(--line);
-      padding-bottom: 0;
     }
     .tab {
       appearance: none;
@@ -236,16 +240,19 @@
       border: none;
       border-bottom: 2px solid transparent;
       margin-bottom: -1px;
-      padding: 0.6rem 0.85rem;
+      padding: 0.7rem 1rem;
       font: inherit;
       font-weight: 500;
       color: var(--muted);
       cursor: pointer;
     }
     .tab[aria-selected="true"] {
-      color: var(--ink);
-      border-bottom-color: var(--skip);
+      color: var(--text);
+      border-bottom-color: var(--accent);
       font-weight: 700;
+    }
+    .panel {
+      padding-top: 0.25rem;
     }
     .panel[hidden] { display: none; }
 
@@ -257,160 +264,164 @@
     }
     ol.steps li {
       position: relative;
-      padding: 0.9rem 0 0.9rem 2.75rem;
+      padding: 1rem 0 1rem 2.85rem;
       border-top: 1px solid var(--line);
-      animation: rise 0.5s ease both;
-    }
-    ol.steps li:nth-child(2) { animation-delay: 0.06s; }
-    ol.steps li:nth-child(3) { animation-delay: 0.12s; }
-    ol.steps li:nth-child(4) { animation-delay: 0.18s; }
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: none; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      ol.steps li { animation: none; }
+      color: #c5cbd6;
     }
     ol.steps li::before {
       counter-increment: step;
       content: counter(step);
       position: absolute;
       left: 0;
-      top: 0.95rem;
-      width: 1.75rem;
-      height: 1.75rem;
+      top: 1.05rem;
+      width: 1.7rem;
+      height: 1.7rem;
       display: grid;
       place-items: center;
       font-family: var(--font-display);
       font-weight: 700;
-      font-size: 0.85rem;
-      background: var(--sand);
-      color: var(--ink);
+      font-size: 0.8rem;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
       border-radius: 50%;
     }
     code, .path {
       font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-      font-size: 0.86em;
-      background: var(--sand);
-      padding: 0.1em 0.35em;
-      border-radius: 2px;
+      font-size: 0.84em;
+      color: #f0d2c0;
+      background: #1c2129;
+      padding: 0.12em 0.4em;
+      border-radius: 3px;
+      border: 1px solid var(--line);
     }
-    .warn {
-      margin-top: 0.85rem;
+    .hint {
+      margin: 0.9rem 0 0;
       padding: 0.75rem 0.9rem;
-      border-left: 3px solid var(--skip);
-      background: #fff4eb;
+      border-left: 3px solid var(--accent);
+      background: #161018;
       font-size: 0.9rem;
-      color: var(--ink);
+      color: #d2c4b8;
     }
-    .ok-note {
-      margin-top: 0.85rem;
+    .soft {
+      margin: 0.85rem 0 0;
       font-size: 0.9rem;
       color: var(--ok);
     }
 
+    .faq { margin: 0; }
     .faq dt {
+      margin-top: 1.1rem;
       font-weight: 700;
-      margin-top: 1rem;
+      color: var(--text);
     }
+    .faq dt:first-child { margin-top: 0; }
     .faq dd {
-      margin: 0.25rem 0 0;
+      margin: 0.3rem 0 0;
       color: var(--muted);
     }
 
     footer {
-      padding-top: 1.5rem;
+      padding-top: 1.4rem;
       border-top: 1px solid var(--line);
-      font-size: 0.85rem;
-      color: var(--muted);
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem 1.25rem;
+      gap: 0.75rem 1.35rem;
+      font-size: 0.85rem;
+      color: var(--muted);
     }
-    footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
-    footer a:hover { color: var(--ink); }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
   </style>
 </head>
 <body>
-  <div class="noise" aria-hidden="true"></div>
-  <div class="wrap">
+  <div class="page">
     <header class="hero">
-      <div class="timeline" aria-hidden="true">
-        <div class="timeline-track"></div>
-        <div class="timeline-gap"></div>
-        <div class="playhead"></div>
-        <span class="tick tick-a">正片</span>
-        <span class="tick tick-b">跳过广告</span>
-        <span class="tick tick-c">正片</span>
+      <div class="scrub" aria-hidden="true">
+        <div class="scrub-bar">
+          <i></i>
+          <i class="ad"></i>
+          <i></i>
+          <div class="scrub-head"></div>
+        </div>
+        <div class="scrub-labels">
+          <span>正片</span>
+          <span class="ad">跳过广告</span>
+          <span>正片</span>
+        </div>
       </div>
-      <h1 class="brand">Media Ad <span>Skip</span></h1>
-      <p class="lede">B站 / 抖音网页版，自动跳过片内恰饭与信息流广告。未上架商店，按下面三步装上即可。</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" id="dl-zip" href="https://github.com/hualeide/media-ad-skip/releases/latest">下载扩展 ZIP</a>
-        <a class="btn btn-ghost" href="https://raw.githubusercontent.com/hualeide/media-ad-skip/master/media-ad-skip.user.js">装油猴脚本</a>
-        <span class="ver" id="ver-label">读取最新版本…</span>
+
+      <div class="hero-copy">
+        <h1 class="brand">Media Ad <em>Skip</em></h1>
+        <p class="headline">播到广告段，自动跳到正片。</p>
+        <p class="lede">只管 B站、抖音网页版：片内恰饭 seek 过去，信息流广告/直播可划走。开源本地装，不上传观看记录。</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" id="dl-zip" href="https://github.com/hualeide/media-ad-skip/releases/latest">下载扩展 ZIP</a>
+          <a class="btn btn-ghost" href="https://raw.githubusercontent.com/hualeide/media-ad-skip/master/media-ad-skip.user.js">改用油猴</a>
+          <span class="ver" id="ver-label">读取版本…</span>
+        </div>
       </div>
     </header>
 
     <main>
       <section id="install" aria-labelledby="install-title">
-        <h2 id="install-title">怎么装</h2>
-        <p class="section-lede">先下 ZIP 解压；目录里要直接看到 <code>manifest.json</code>。</p>
+        <h2 id="install-title">安装</h2>
+        <p class="section-lede">下载 ZIP 后解压，选中<strong>里面直接有</strong> <code>manifest.json</code> 的那一层。</p>
 
         <div class="tabs" role="tablist" aria-label="安装方式">
-          <button type="button" class="tab" role="tab" id="tab-chromium" aria-controls="panel-chromium" aria-selected="true">Chrome / Edge 等</button>
+          <button type="button" class="tab" role="tab" id="tab-chromium" aria-controls="panel-chromium" aria-selected="true">Chrome / Edge</button>
           <button type="button" class="tab" role="tab" id="tab-firefox" aria-controls="panel-firefox" aria-selected="false">Firefox</button>
           <button type="button" class="tab" role="tab" id="tab-tm" aria-controls="panel-tm" aria-selected="false">油猴</button>
         </div>
 
         <div class="panel" role="tabpanel" id="panel-chromium" aria-labelledby="tab-chromium">
           <ol class="steps">
-            <li>下载 ZIP 并解压。记住解压后的文件夹位置。</li>
-            <li>打开扩展页：Chrome <code>chrome://extensions</code> · Edge <code>edge://extensions</code> · Brave / Opera / Vivaldi 同理，打开开发者模式。</li>
-            <li>点「加载已解压的扩展程序」，选中含 <code>manifest.json</code> 的那一层（通常叫 <span class="path">extension</span>）。</li>
-            <li>打开 B站或抖音网页，点工具栏图标即可用。</li>
+            <li>解压 ZIP，记下文件夹路径。</li>
+            <li>打开 <code>chrome://extensions</code> 或 <code>edge://extensions</code>（Brave / Opera / Vivaldi 同理），打开开发者模式。</li>
+            <li>「加载已解压的扩展程序」→ 选含 <code>manifest.json</code> 的目录（常见名 <span class="path">extension</span>）。</li>
+            <li>打开任意 B站视频或抖音网页，点工具栏图标。</li>
           </ol>
-          <p class="warn">选成仓库根目录会失败。必须选里面直接有 <code>manifest.json</code> 的文件夹。</p>
+          <p class="hint">选仓库根目录会失败：那一层通常没有 <code>manifest.json</code>。</p>
         </div>
 
         <div class="panel" role="tabpanel" id="panel-firefox" aria-labelledby="tab-firefox" hidden>
           <ol class="steps">
-            <li>需要 Firefox 121+。下载并解压 ZIP。</li>
+            <li>Firefox 121+。解压 ZIP。</li>
             <li>打开 <code>about:debugging#/runtime/this-firefox</code>。</li>
-            <li>「临时载入附加组件」→ 选解压目录里的 <code>manifest.json</code>。</li>
-            <li>打开 B站 / 抖音网页使用。浏览器重启后需再载一次。</li>
+            <li>「临时载入附加组件」→ 选目录里的 <code>manifest.json</code>。</li>
+            <li>去 B站 / 抖音用。重启浏览器后需再载一次。</li>
           </ol>
         </div>
 
         <div class="panel" role="tabpanel" id="panel-tm" aria-labelledby="tab-tm" hidden>
           <ol class="steps">
-            <li>安装 Tampermonkey / Violentmonkey 等脚本管理器。</li>
-            <li>点上方「装油猴脚本」，在管理器里确认安装。</li>
-            <li>打开 B站 / 抖音页面；脚本带 <code>@updateURL</code>，管理器会抽查更新。</li>
+            <li>先装 Tampermonkey 或 Violentmonkey。</li>
+            <li>点上方「改用油猴」，在管理器里确认安装。</li>
+            <li>打开 B站 / 抖音即可；脚本带自动更新检查。</li>
           </ol>
-          <p class="ok-note">油猴适合不想碰「开发者模式」的用户；扩展功能更完整（设置页、更新角标）。</p>
+          <p class="soft">扩展有设置页和更新角标；油猴更省事。</p>
         </div>
       </section>
 
       <section id="update" aria-labelledby="update-title">
-        <h2 id="update-title">以后怎么更新</h2>
-        <p class="section-lede">本地加载不会静默升级；扩展会每天查 GitHub，有新版图标角标显示 ↑。</p>
+        <h2 id="update-title">更新</h2>
+        <p class="section-lede">本地加载不会静默升级。扩展每天查 GitHub，有新版图标角标 ↑。</p>
         <ol class="steps">
-          <li>从本页或 <a href="https://github.com/hualeide/media-ad-skip/releases/latest">Releases</a> 再下最新 ZIP。</li>
-          <li>用新文件覆盖本地扩展目录，扩展页点「重新加载」。</li>
+          <li>再下最新 ZIP（本页或 <a href="https://github.com/hualeide/media-ad-skip/releases/latest">Releases</a>）。</li>
+          <li>覆盖本地扩展目录 → 扩展页「重新加载」。</li>
           <li>关掉旧的 B站 / 抖音标签再开。</li>
         </ol>
       </section>
 
       <section id="faq" aria-labelledby="faq-title">
-        <h2 id="faq-title">装不上？</h2>
+        <h2 id="faq-title">常见问题</h2>
         <dl class="faq">
-          <dt>扩展在，页面没反应</dt>
-          <dd>确认是 bilibili.com / douyin.com；重载扩展后新开标签。</dd>
-          <dt>抖音卡顿</dt>
-          <dd>选项里先关掉「信息流广告 / 直播卡」，尽量进具体视频页再测。</dd>
-          <dt>只覆盖哪些站？</dt>
-          <dd>仅 B站与抖音网页版；客户端 App 与其它视频站不做。</dd>
+          <dt>扩展装了，页面没反应？</dt>
+          <dd>确认域名是 bilibili.com / douyin.com；重载扩展后新开标签。</dd>
+          <dt>抖音卡顿？</dt>
+          <dd>选项里先关「信息流广告 / 直播卡」，尽量进具体视频页。</dd>
+          <dt>支持 App 或其它网站吗？</dt>
+          <dd>不支持。只做 B站与抖音网页版。</dd>
         </dl>
       </section>
     </main>
@@ -419,7 +430,7 @@
       <a href="https://github.com/hualeide/media-ad-skip">源码</a>
       <a href="https://github.com/hualeide/media-ad-skip/blob/master/extension/PRIVACY.md">隐私</a>
       <a href="https://github.com/hualeide/media-ad-skip/blob/master/README.md">完整说明</a>
-      <span>MIT · 开源自用</span>
+      <span>MIT</span>
     </footer>
   </div>
 
@@ -453,13 +464,11 @@
           var asset = (j.assets || []).find(function (a) {
             return /\.zip$/i.test(a.name || '');
           });
-          if (asset && asset.browser_download_url) {
-            dl.href = asset.browser_download_url;
-          }
-          ver.textContent = tag ? ('最新 ' + tag) : '最新 Release';
+          if (asset && asset.browser_download_url) dl.href = asset.browser_download_url;
+          ver.textContent = tag ? ('v' + tag) : '最新包';
         })
         .catch(function () {
-          ver.textContent = '打开 Releases 选最新包';
+          ver.textContent = 'Releases';
         });
     })();
   </script>
