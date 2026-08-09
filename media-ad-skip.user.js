@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.30
+// @version      1.5.31
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.30') return;
-  window.__MAS_VER__ = '1.5.30';
+  if (window.__MAS_VER__ === '1.5.31') return;
+  window.__MAS_VER__ = '1.5.31';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -1417,7 +1417,7 @@
     }
   }
 
-  /** 信息流下一则：优先官方按钮，再键盘 + 滚轮（滚轮打在 video 上，避免点到头像进直播） */
+  /** 信息流下一则：官方按钮 + 键鼠 + 硬滚一屏 */
   function swipeToNextFeed() {
     const nextBtn = document.querySelector(
       '[data-e2e="video-switch-next-arrow"], [data-e2e="feed-scroll-down"],'
@@ -1435,10 +1435,22 @@
       if (target) {
         const midX = Math.floor(window.innerWidth / 2);
         const midY = Math.floor(window.innerHeight / 2);
-        // 正 deltaY = 滚轮向下 = 下一条（与 ArrowDown 一致）
         const wheel = { deltaY: 900, deltaMode: 0, bubbles: true, cancelable: true, clientX: midX, clientY: midY };
         target.dispatchEvent(new WheelEvent('wheel', wheel));
+        document.dispatchEvent(new WheelEvent('wheel', wheel));
       }
+    } catch { /* ignore */ }
+    try {
+      const active = getActiveFeedRoot();
+      const scroller = active?.parentElement || active?.closest('[class*="scroll"], [class*="Slider"], [class*="feed"]') || null;
+      const dy = Math.floor(window.innerHeight * 0.9);
+      if (scroller && typeof scroller.scrollBy === 'function') scroller.scrollBy({ top: dy, left: 0, behavior: 'auto' });
+      else window.scrollBy(0, dy);
+    } catch { /* ignore */ }
+    try {
+      const slide = document.querySelector('.swiper-slide-active');
+      const sw = slide?.closest('.swiper')?.swiper;
+      if (sw && typeof sw.slideNext === 'function') sw.slideNext();
     } catch { /* ignore */ }
   }
 
@@ -1486,16 +1498,54 @@
   function isStrongLiveRoomText(text) {
     const t = String(text || '');
     if (!t) return false;
-    // 「点击或按 F 进入直播间」等（勿要求「点击」紧贴「进入」）
     if (/进入直播间|点击进入直播|去直播间看|观看直播|按\s*F\s*进入/.test(t)) return true;
-    // 推荐流直播预览倒计时条
-    if (/\d+\s*s?\s*后将进入下一个视频|后将进入下一个视频/.test(t)) return true;
+    if (/后将进入下一个视频|\d+\s*s\s*后将进入/.test(t)) return true;
     return false;
   }
 
   function looksLikeLiveBadgeText(t) {
     const s = String(t || '').replace(/\s+/g, ' ').trim();
     return s === '直播中' || s === '直播' || /^LIVE$/i.test(s);
+  }
+
+  /** 底部浮层「进入直播间 / Ns后下一个」常不在 slide 根里，必须按视口探测 */
+  function detectLivePreviewInViewport() {
+    const vh = window.innerHeight || 800;
+    const vw = window.innerWidth || 1200;
+    const points = [
+      [0.5, 0.78], [0.5, 0.84], [0.5, 0.9],
+      [0.42, 0.86], [0.58, 0.86], [0.5, 0.72],
+    ];
+    for (const [fx, fy] of points) {
+      let el = null;
+      try {
+        el = document.elementFromPoint(Math.floor(vw * fx), Math.floor(vh * fy));
+      } catch { /* ignore */ }
+      let n = el;
+      for (let d = 0; d < 8 && n; d += 1) {
+        const t = String(n.innerText || n.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+        if (isStrongLiveRoomText(t)) return true;
+        n = n.parentElement;
+      }
+    }
+    // 可见按钮/短文案兜底（限数量）
+    const nodes = document.querySelectorAll('button, [role="button"], span, div, p');
+    const max = Math.min(nodes.length, 220);
+    let badge = false;
+    let cta = false;
+    for (let i = 0; i < max; i += 1) {
+      const el = nodes[i];
+      if ((el.children?.length || 0) > 6) continue;
+      const t = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!t || t.length > 42) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      if (r.bottom < vh * 0.45 || r.top > vh || r.right < 0 || r.left > vw) continue;
+      if (looksLikeLiveBadgeText(t)) badge = true;
+      if (isStrongLiveRoomText(t)) cta = true;
+      if (cta) return true;
+    }
+    return badge && cta;
   }
 
   /** 看角标/短标签，比整卡文本更稳 */
@@ -1643,20 +1693,27 @@
 
     const card = inspectActiveFeedCard();
     const text = card.text || douyinCurrentCardText();
+    const liveHit = card.live || isFeedLive(text) || detectLivePreviewInViewport();
     const shopHit = card.shop || isFeedShop(text);
     const adHit = card.ad || isFeedAdLike(text);
     let shouldSkip = false;
     let reason = '';
-    // 广告 / 购物 / 直播分开；开广告时不自动带上购物（购物有独立开关）
+    // 广告 / 购物 / 直播分开
     if (cfg.douyinFeedAd && adHit) {
       shouldSkip = true;
       reason = '信息流广告';
     } else if (cfg.douyinFeedShop && shopHit) {
       shouldSkip = true;
       reason = '购物卡';
-    } else if (cfg.douyinFeedLive && (card.live || isFeedLive(text))) {
+    } else if (cfg.douyinFeedLive && liveHit) {
       shouldSkip = true;
       reason = '直播卡';
+    } else if (!cfg.douyinFeedLive && liveHit) {
+      // 让用户知道是开关问题，不是「坏了」
+      if (!douyinFeedTick._liveHintAt || now - douyinFeedTick._liveHintAt > 10000) {
+        douyinFeedTick._liveHintAt = now;
+        setStatus('直播卡 · 请打开「划走直播」');
+      }
     }
     if (!shouldSkip) return;
 
@@ -1667,7 +1724,8 @@
     lastFeedSkipAt = now;
     setStatus(`划走${reason}`);
     swipeToNextFeed();
-    setTimeout(() => swipeToNextFeed(), 280);
+    setTimeout(() => swipeToNextFeed(), 220);
+    setTimeout(() => swipeToNextFeed(), 500);
   }
 
   /** 抖音官方「广告看点」索引 → 跳过区间（口播略加缓冲，勿吞太多正片） */
