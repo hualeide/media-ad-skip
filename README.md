@@ -1,13 +1,13 @@
 # Media Ad Skip
 
-[![Version](https://img.shields.io/badge/version-1.5.24-blue.svg)](./extension/manifest.json)
+[![Version](https://img.shields.io/badge/version-1.5.25-blue.svg)](./extension/manifest.json)
 [![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Sites](https://img.shields.io/badge/Sites-Bilibili%20%2B%20Douyin-green.svg)](#-作用)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
-B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome / Edge 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
+B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromium / Firefox 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
-> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.24**。隐私说明见 [`extension/PRIVACY.md`](extension/PRIVACY.md)。
+> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.25**。隐私说明见 [`extension/PRIVACY.md`](extension/PRIVACY.md)。
 
 ---
 
@@ -34,7 +34,16 @@ B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome
 
 ## 🚀 极速上手
 
-本扩展未上架商店，需用浏览器 **开发者模式** 本地加载（和多数开源 MV3 扩展一样）。
+未上架商店：同一份 `extension/` 可装到多款浏览器（开发者模式 / 临时加载）。
+
+| 浏览器 | 扩展页 | 说明 |
+|--------|--------|------|
+| **Chrome** | `chrome://extensions/` | 加载已解压 → 选 `extension/` |
+| **Edge** | `edge://extensions/` | 同上 |
+| **Brave** | `brave://extensions/` | Chromium，同上 |
+| **Opera** | `opera://extensions/` | Chromium，同上 |
+| **Vivaldi** | `vivaldi://extensions/` | Chromium，同上 |
+| **Firefox** | `about:debugging#/runtime/this-firefox` | 「临时载入附加组件」→ 选 `extension/manifest.json`（重启后需再载） |
 
 ### 1. 拿到代码
 
@@ -42,46 +51,49 @@ B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chrome
 
 - **GitHub**：打开 [本仓库](https://github.com/hualeide/media-ad-skip) → 绿色 **Code** → **Download ZIP** → 解压到任意目录  
 - **Git**：`git clone https://github.com/hualeide/media-ad-skip.git`
+- **Release zip**：[Releases](https://github.com/hualeide/media-ad-skip/releases) 下载扩展包解压后，里面应直接有 `manifest.json`
 
-解压后确认存在：`media-ad-skip/extension/manifest.json`（后面要选的是 **`extension` 这一层**，不是仓库根目录）。
+确认目录里有：`manifest.json`、`background.js`、`content/`（选 **这一层**，不是仓库根目录）。
 
-### 2. 开发者模式安装（本地加载）
+### 2. Chromium 系（Chrome / Edge / Brave / Opera / Vivaldi）
 
-1. 打开 Chrome / Edge，地址栏输入并回车：
-   - Chrome：`chrome://extensions/`
-   - Edge：`edge://extensions/`
-2. 右上角打开 **「开发者模式」**（Developer mode）。
-3. 点击 **「加载已解压的扩展程序」**（Load unpacked）。
-4. 选中本仓库里的 **`extension`** 文件夹（里面直接有 `manifest.json`、`background.js`、`content/` 等）。
-5. 列表里出现 **Media Ad Skip**，状态为已启用即可。
-6. 点浏览器工具栏 **拼图** 图标，找到 **Media Ad Skip** → **固定**，方便以后点。
+1. 打开上表对应扩展页，打开 **开发者模式**。
+2. **加载已解压的扩展程序** → 选 **`extension/`**。
+3. 工具栏固定 **Media Ad Skip**。
 
-> ⚠️ **常见翻车**：选成了仓库根目录 `media-ad-skip/`（没有直接的 `manifest.json`）会加载失败。必须选 **`extension/`**。
+> ⚠️ 选成仓库根目录（没有直接的 `manifest.json`）会失败。
 
-### 3. 开始用
+### 3. Firefox
+
+1. 地址栏打开 `about:debugging#/runtime/this-firefox`
+2. **临时载入附加组件** → 选 `extension/manifest.json`
+3. 需要 **Firefox 121+**；临时附加组件在浏览器重启后会卸掉，再按上面载一次即可
+
+### 4. 开始用
 
 1. 打开 [B站视频页](https://www.bilibili.com/) 或 [抖音网页版](https://www.douyin.com/)（**只有这两个站会注入脚本**）。
 2. 点扩展图标：可 **立即跳过 / 撤销 / 本集不跳 / 标错了 / 重新分析**。
-3. 详细开关（品牌词、黑名单、软跳秒数、SponsorBlock、信息流划走等）在扩展的 **「选项」** 页。
-4. 跳过成功后右下角会出现 toast，可撤销。
+3. 详细开关在扩展 **「选项」** 页。
+4. 跳过成功后右下角 toast，可撤销。
 
-### 4. 改代码 / 更新后怎么刷新
+### 5. 改代码 / 更新后怎么刷新
 
-1. 若你改的是油猴源 `media-ad-skip.user.js`，先在仓库根目录执行：
+1. 若改了油猴源 `media-ad-skip.user.js`：
    ```bash
    node scripts/build-extension-content.mjs
    ```
-2. 回到 `chrome://extensions/`，在 Media Ad Skip 卡片上点 **「重新加载」**。
-3. **关掉旧的 B站 / 抖音标签再新开**（或弹窗里点「刷新当前页」），否则可能还在跑旧脚本。
+2. Chromium：扩展页点 **重新加载**；Firefox：调试页重新临时载入。
+3. **关掉旧的 B站 / 抖音标签再新开**。
 
-### 5. 装不上时对照表
+### 6. 装不上时对照表
 
 | 现象 | 处理 |
 |------|------|
-| 加载报错 / 找不到 manifest | 选的目录不对 → 选 `extension/` |
-| 扩展在，但视频页没反应 | 确认是 `bilibili.com` / `douyin.com`；重载扩展后新开标签 |
+| 加载报错 / 找不到 manifest | 选的目录不对 → 选 `extension/`（或 Firefox 选其中的 `manifest.json`） |
+| Firefox 拒绝 service_worker | 需 121+；本包已同时声明 `background.scripts` |
+| 扩展在，但视频页没反应 | 确认是 `bilibili.com` / `douyin.com`；重载后新开标签 |
 | 抖音标签卡死、崩 | 选项里先关掉「信息流广告 / 直播卡」；尽量进具体视频页再测 |
-| 权限变更后异常 | 扩展页重新加载；必要时移除后按上面步骤再加载一次 |
+| 权限变更后异常 | 扩展页重新加载；必要时移除后再装 |
 
 ---
 
