@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "Media Ad Skip",
+  "version": "1.5.11",
+  "description": "B站/抖音广告跳过：SponsorBlock、字幕品牌词、看点广告；支持撤销、本集禁用与标错反馈。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Media Ad Skip",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "*://*.bilibili.com/*",
+    "*://*.douyin.com/*",
+    "*://*.iesdouyin.com/*",
+    "*://bsbsb.top/*",
+    "*://api.bilibili.com/*",
+    "*://comment.bilibili.com/*",
+    "*://i0.hdslb.com/*",
+    "*://i1.hdslb.com/*",
+    "*://i2.hdslb.com/*",
+    "*://s1.hdslb.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.bilibili.com/video/*",
+        "*://www.bilibili.com/list/*",
+        "*://www.bilibili.com/watchlater/*",
+        "*://www.bilibili.com/bangumi/*",
+        "*://m.bilibili.com/video/*",
+        "*://www.douyin.com/*",
+        "*://www.iesdouyin.com/*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/page-bridge.js"],
+      "matches": [
+        "*://www.douyin.com/*",
+        "*://www.iesdouyin.com/*"
+      ]
+    }
+  ]
+}

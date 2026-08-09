@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Media Ad Skip 设置</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">
+        <h1>Media Ad Skip</h1>
+        <span id="extVersion" class="pill">…</span>
+      </div>
+      <p>B站 / 抖音网页版 · 片内广告跳过与信息流划走</p>
+    </header>
+
+    <section>
+      <h2>通用</h2>
+      <label><input type="checkbox" id="autoSkip" /> 自动跳过（有跳点时）</label>
+      <label><input type="checkbox" id="showUndoToast" /> 右下角提示（即将跳过 / 已跳过）</label>
+      <label><input type="checkbox" id="showPanel" /> 页面浮动面板（默认关，用扩展图标操作）</label>
+      <label class="row">Toast 停留（秒）
+        <input type="number" id="countdownSec" min="0" max="15" step="1" />
+      </label>
+      <label class="row">无时间戳时软跳（秒）
+        <input type="number" id="softOralSkipSec" min="15" max="90" step="1" title="口播无看点/字幕时，从当前进度跳过的秒数" />
+      </label>
+      <p class="hint">软跳：只有「疑似口播但无终点」时，点弹窗「立即跳过 / 约N秒」才会用。</p>
+    </section>
+
+    <section>
+      <h2>B站</h2>
+      <label><input type="checkbox" id="biliInVideo" /> 片内广告检测</label>
+      <label><input type="checkbox" id="useSponsorBlock" /> 优先使用 SponsorBlock 社区标注</label>
+    </section>
+
+    <section>
+      <h2>抖音</h2>
+      <label><input type="checkbox" id="douyinInVideo" /> 片内：看点 / 字幕 / 跳过按钮</label>
+      <label><input type="checkbox" id="douyinFeedAd" /> 划走信息流广告卡</label>
+      <label><input type="checkbox" id="douyinFeedLive" /> 划走直播卡</label>
+      <label><input type="checkbox" id="douyinFeedShop" /> 划走购物卡</label>
+      <label class="row">信息流检测间隔（毫秒）
+        <input type="number" id="feedPollMs" min="400" max="3000" step="50" />
+      </label>
+      <p class="hint">有官方广告看点或字幕品牌词时可自动空降；纯口播无时间轴只能软跳或点官方「跳过广告」。</p>
+    </section>
+
+    <section>
+      <h2>品牌词</h2>
+      <p class="hint">一行一个。字幕 / 看点标题命中会提高广告判定。保存后立即对已打开页面生效（需扩展已注入）。</p>
+      <textarea id="brandKeywords" rows="10" spellcheck="false"></textarea>
+      <div class="row-actions">
+        <button type="button" id="resetBrands" class="secondary">恢复默认</button>
+        <button type="button" id="mergeBrands" class="secondary">合并缺失默认词</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>黑名单</h2>
+      <p class="hint">视频 ID：B站 BV 号或抖音数字 ID，一行一个。</p>
+      <textarea id="blockBvids" rows="4" spellcheck="false" placeholder="BV1xx…&#10;7580755333623264229"></textarea>
+      <p class="hint">UP mid（仅 B站），一行一个；该 UP 全部视频禁用跳过。</p>
+      <textarea id="blockMids" rows="3" spellcheck="false" placeholder="123456"></textarea>
+    </section>
+
+    <section>
+      <h2>标错反馈</h2>
+      <p class="hint">面板 / Toast「标错了」写入本地（最多 50 条），可复制 JSON 反馈。</p>
+      <pre id="feedbackPreview" class="preview">（暂无）</pre>
+      <div class="row-actions">
+        <button type="button" id="exportFeedback" class="secondary">复制全部反馈</button>
+        <button type="button" id="clearFeedback" class="secondary">清空反馈</button>
+      </div>
+    </section>
+
+    <footer>
+      <div class="row-actions">
+        <button type="button" id="save">保存设置</button>
+        <span id="toast" hidden>已保存</span>
+      </div>
+      <p class="privacy">仅在你打开的 B站 / 抖音页运行；会请求 SponsorBlock 镜像与平台公开 API。详见 <code>extension/PRIVACY.md</code>。</p>
+    </footer>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
