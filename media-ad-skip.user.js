@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.29
+// @version      1.5.30
 // @description  仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、官方广告看点
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -29,8 +29,8 @@
 
 (function () {
   'use strict';
-  if (window.__MAS_VER__ === '1.5.29') return;
-  window.__MAS_VER__ = '1.5.29';
+  if (window.__MAS_VER__ === '1.5.30') return;
+  window.__MAS_VER__ = '1.5.30';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -1482,9 +1482,20 @@
     );
   }
 
-  /** 真·直播间卡，不是作者头像上的「直播」粉标（短视频也会带） */
+  /** 真·直播间/直播预览卡，不是作者头像上单独的「直播」粉标 */
   function isStrongLiveRoomText(text) {
-    return /点击进入直播间|进入直播间|点击进入直播|去直播间看|观看直播/.test(text || '');
+    const t = String(text || '');
+    if (!t) return false;
+    // 「点击或按 F 进入直播间」等（勿要求「点击」紧贴「进入」）
+    if (/进入直播间|点击进入直播|去直播间看|观看直播|按\s*F\s*进入/.test(t)) return true;
+    // 推荐流直播预览倒计时条
+    if (/\d+\s*s?\s*后将进入下一个视频|后将进入下一个视频/.test(t)) return true;
+    return false;
+  }
+
+  function looksLikeLiveBadgeText(t) {
+    const s = String(t || '').replace(/\s+/g, ' ').trim();
+    return s === '直播中' || s === '直播' || /^LIVE$/i.test(s);
   }
 
   /** 看角标/短标签，比整卡文本更稳 */
@@ -1509,8 +1520,10 @@
     if (!roots.length) return out;
 
     const bits = [];
+    let sawLiveBadge = false;
+    let sawLiveCta = false;
     for (const root of roots) {
-      bits.push(lightText(root, 280, 40));
+      bits.push(lightText(root, 320, 56));
       if (root.querySelector(
         '[class*="ad-tag"], [class*="AdTag"], [class*="advert"], [class*="Advert"],'
         + '[data-e2e*="ad"], [data-e2e*="Ad"], [class*="isAd"], [class*="is-ad"],'
@@ -1530,16 +1543,25 @@
       const nodes = root.querySelectorAll(
         'span, a, p, div, label, i, button, em, strong, h1, h2, h3',
       );
-      const max = Math.min(nodes.length, 140);
+      const max = Math.min(nodes.length, 160);
       for (let i = 0; i < max; i += 1) {
         const el = nodes[i];
-        if ((el.children?.length || 0) > 4) continue;
+        if ((el.children?.length || 0) > 5) continue;
         const aria = String(el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim();
         if (looksLikeAdBadgeText(aria)) out.ad = true;
+        if (isStrongLiveRoomText(aria)) {
+          sawLiveCta = true;
+          out.live = true;
+        }
         const t = String(el.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!t || t.length > 28) continue;
+        if (!t || t.length > 40) continue;
         if (looksLikeAdBadgeText(t)) out.ad = true;
-        if (isStrongLiveRoomText(t) && !isNearAvatarOrFollow(el)) out.live = true;
+        if (looksLikeLiveBadgeText(t)) sawLiveBadge = true;
+        // 进房 CTA：即使靠近头像区也算直播卡（底部「进入直播间」不是粉标）
+        if (isStrongLiveRoomText(t)) {
+          sawLiveCta = true;
+          out.live = true;
+        }
         if (/^购物\s*[|｜]/.test(t) || /^(立即购买|商品橱窗|去购买|购物|查看详情)$/.test(t)) {
           out.shop = true;
         }
@@ -1548,8 +1570,10 @@
       if (out.ad && out.live && out.shop) break;
     }
 
-    out.text = bits.filter(Boolean).join('\n').slice(0, 500);
+    out.text = bits.filter(Boolean).join('\n').slice(0, 600);
     if (isStrongLiveRoomText(out.text)) out.live = true;
+    // 「直播中」角标 + 进房文案/倒计时 → 直播预览卡
+    if (sawLiveBadge && (sawLiveCta || isStrongLiveRoomText(out.text))) out.live = true;
     return out;
   }
 
