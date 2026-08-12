@@ -37,6 +37,13 @@
       font-weight: 600;
       letter-spacing: -0.02em;
     }
+    .tagline {
+      margin: 4px 0 0;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--secondary);
+      letter-spacing: -0.01em;
+    }
     #status {
       margin: 4px 0 0;
       font-size: 12px;
@@ -156,6 +163,15 @@
       color: var(--secondary);
       line-height: 1.35;
     }
+    .feed-stat {
+      margin: 6px 2px 8px;
+      font-size: 15px;
+      font-weight: 650;
+      color: var(--label);
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+    }
     .update {
       display: none;
       margin: 0 0 12px;
@@ -190,6 +206,7 @@
 <body>
   <div class="header">
     <h1>Media Ad Skip</h1>
+    <p class="tagline">像绯红之王一样删除广告时间</p>
     <p id="status">读取中…</p>
   </div>
 
@@ -224,6 +241,7 @@
         <span class="track"><span class="knob"></span></span>
       </span>
     </label>
+    <p class="feed-stat" id="feedStat">划走 0 · 跳过 0 · 已删 0秒</p>
     <div class="row">
       <span>
         <span class="row-label" id="blockLabel">本集不跳</span>
@@ -238,11 +256,11 @@
 
   <div class="actions">
     <button type="button" id="reanalyze" class="primary">重新分析</button>
-    <button type="button" id="undo">撤销跳过</button>
+    <button type="button" id="undo" title="这是一场试炼……">撤销跳过</button>
     <button type="button" id="wrong">标错了</button>
     <button type="button" id="openOptions">打开设置页</button>
   </div>
-  <p class="footnote">品牌词 / SponsorBlock 等在设置页。无更新提示时也可点设置页「检查更新」。</p>
+  <p class="footnote">勿与油猴脚本双开。品牌词 / SponsorBlock 等在设置页。无更新提示时也可点设置页「检查更新」。</p>
   <script src="popup.js"></script>
 </body>
 </html>

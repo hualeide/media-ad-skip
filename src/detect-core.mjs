@@ -3,6 +3,19 @@
  * round-test 与自测直接引用；userscript 内嵌同构实现。
  */
 
+import {
+  DEFAULT_BRAND_KW,
+  MIN_AD_SEC,
+  MAX_AD_SEC,
+  MIN_SEG_START_SEC,
+  SEG_TAIL_GUARD_SEC,
+  JUMP_VOTE_MIN_SCORE,
+  CONF_LANG_TIP,
+  CONF_COLON_JUMP,
+  CONF_COLON_WEAK,
+  MAX_SUBTITLE_AD_SEC,
+} from './config.mjs';
+
 export const ZH_NUM = {
   零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4,
   五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10,
@@ -48,7 +61,7 @@ export function extractTimeFromText(text) {
 
   // X分Y郎 / 谢谢…郎
   let m = t.match(/(?:谢谢|感谢|谢|多谢|感恩)?\s*(\d{1,2})\s*分\s*(\d{1,2})\s*(?:郎|君|酱|哥|姐|侠|总|大佬|大神)/);
-  if (m) return { time: parseInt(m[1], 10) * 60 + parseInt(m[2], 10), conf: 1.5 };
+  if (m) return { time: parseInt(m[1], 10) * 60 + parseInt(m[2], 10), conf: CONF_LANG_TIP };
 
   m = t.match(/(\d{1,2})[:;：；](\d{2})(?!\d)/);
   if (m) {
@@ -56,7 +69,7 @@ export function extractTimeFromText(text) {
     if (sec < 60) {
       const time = parseInt(m[1], 10) * 60 + sec;
       const hasJump = /(空降(?!兵)|跳过|快进|广告|恰饭|指路|进度条|mark|标记|正片|指挥部)/i.test(raw + t);
-      return { time, conf: hasJump ? 1.25 : 0.35 };
+      return { time, conf: hasJump ? CONF_COLON_JUMP : CONF_COLON_WEAK };
     }
   }
 
@@ -93,32 +106,28 @@ export function extractTimeFromText(text) {
 export function validSeg(seg, duration) {
   if (!seg || seg.start == null || seg.end == null) return false;
   const len = seg.end - seg.start;
-  if (len < 8 || len > 420) return false;
+  if (len < MIN_AD_SEC || len > MAX_AD_SEC) return false;
   if (seg.start < 0) return false;
-  if (!String(seg.source || '').startsWith('creator') && seg.start < 3) return false;
-  if (duration > 0 && seg.end >= duration - 3) return false;
+  if (!String(seg.source || '').startsWith('creator') && seg.start < MIN_SEG_START_SEC) return false;
+  if (duration > 0 && seg.end >= duration - SEG_TAIL_GUARD_SEC) return false;
   return true;
 }
 
 /** 口播商单常见品牌：字幕一旦出现，广告置信远高于泛词 */
-export const AD_BRAND_KW = [
-  '转转', '爱回收', '闲鱼', '瓜子', '萤石', '山楂树下', '真我',
-  '神奇小鹿', '小鹿冰被', '躺岛', '蓝盒子', '半日闲', '时光存折', '栖作', '甜秘密',
-  '华味坊', '酸汤面叶', '劲仔', '卫龙', '盐津铺子', '三只松鼠', '良品铺子', '王小卤', '认养一头牛',
-  '妙界', '赫恩', '海洋至尊', '溪木源', '博乐达', '蜜丝婷',
-  '盖世小鸡', '飞智', '北通', '黑白调', '骁骑',
-  '瑞幸', '安克', '酷态科',
-];
+export const AD_BRAND_KW = DEFAULT_BRAND_KW.slice();
 
+/** 强广告语境（同句出现才敢信短品牌 / 抬置信） */
+export const AD_CTX_RE = /(赞助|恰饭|商单|广告|软广|金主|优惠券|领券|下单|购买|带货|橱窗|链接|折扣|满减|安利)/;
+
+/** 字幕硬 CTA：单独出现也计分（已去掉「合作/限时/入手」等游戏口播高频误伤词） */
 export const AD_CONTENT_KW = [
-  '赞助', '冠名', '推广', '合作', '商单', '评论区', '蓝链', '二维码', '口令',
-  '领取', '领券', '优惠券', '优惠码', '兑换码', '下单', '购买', '入手', '抢购',
-  '限时', '福利', '首充', '种草', '安利', '应用商店',
+  '赞助', '冠名', '商单', '蓝链', '二维码', '口令',
+  '领券', '优惠券', '优惠码', '兑换码', '首充', '应用商店',
 ];
 
 /**
  * 字幕关键词/品牌聚类成广告段。
- * 品牌词权重更高：单次命中即可成段（并前后垫一点时长）。
+ * 品牌须有广告语境或多次命中；按间隙拆簇，避免早段误命中并入真广告后早跳。
  */
 export function detectFromSubtitles(lines, danmaku, duration) {
   if (!lines || lines.length < 5) return null;
@@ -134,49 +143,99 @@ export function detectFromSubtitles(lines, danmaku, duration) {
       to: line.to,
       matched,
       brands,
+      text,
       weight: brands.length ? 2 + brands.length : 1,
     });
   }
   if (!hits.length) return null;
 
-  const hasBrand = hits.some((h) => h.brands.length);
+  const brandHits = hits.filter((h) => h.brands.length);
+  const hasAdCtx = hits.some((h) => h.matched.length || AD_CTX_RE.test(h.text || ''));
+  const longBrand = hits.some((h) => h.brands.some((b) => b.length >= 4));
+  // 短品牌需语境/多次；≥4 字品牌名单较稳，允许单次
+  const hasBrand = brandHits.length > 0 && (hasAdCtx || brandHits.length >= 2 || longBrand);
   if (hits.length < 2 && !hasBrand) return null;
 
-  const MAX_WIN = 120;
-  let bestWeight = 0;
-  let bestStart = -1;
-  let bestEnd = -1;
-  let i = 0;
-  for (let j = 0; j < hits.length; j++) {
-    while (hits[j].from - hits[i].from > MAX_WIN) i++;
-    let w = 0;
-    for (let k = i; k <= j; k++) w += hits[k].weight;
-    if (w > bestWeight) {
-      bestWeight = w;
-      bestStart = hits[i].from;
-      bestEnd = hits[j].to;
+  const PAD_START = 2;
+  const PAD_END = 8;
+  const CLUSTER_GAP = 28;
+
+  function splitClusters(list, gapSec) {
+    const out = [];
+    let cur = [];
+    for (const h of list) {
+      if (cur.length && h.from - cur[cur.length - 1].to > gapSec) {
+        out.push(cur);
+        cur = [];
+      }
+      cur.push(h);
     }
+    if (cur.length) out.push(cur);
+    return out;
   }
 
-  if (bestWeight >= 2 && bestEnd > bestStart) {
-    if (hasBrand) {
-      bestStart = Math.max(0, bestStart - 8);
-      const padEnd = bestEnd + 45;
-      bestEnd = duration > 0 ? Math.min(duration - 3.1, padEnd) : padEnd;
+  /** 簇内取 ≤maxSpan 的最重子窗；同分偏好更短、更晚（贴口播芯） */
+  function densestSubspan(list, maxSpan) {
+    if (!list.length) return null;
+    let bestW = -1;
+    let bestI = 0;
+    let bestJ = 0;
+    let i = 0;
+    for (let j = 0; j < list.length; j++) {
+      while (list[j].from - list[i].from > maxSpan) i += 1;
+      let w = 0;
+      for (let k = i; k <= j; k++) w += list[k].weight;
+      const span = list[j].to - list[i].from;
+      const bestSpan = list[bestJ].to - list[bestI].from;
+      const better = w > bestW
+        || (w === bestW && span < bestSpan)
+        || (w === bestW && span === bestSpan && list[i].from > list[bestI].from);
+      if (better) {
+        bestW = w;
+        bestI = i;
+        bestJ = j;
+      }
     }
-    const seg = {
-      start: bestStart,
-      end: bestEnd,
-      source: hasBrand ? 'subtitle-brand' : 'subtitle',
-    };
+    return { weight: bestW, start: list[bestI].from, end: list[bestJ].to };
+  }
+
+  const clampSub = (seg) => {
+    if (!seg || seg.end <= seg.start) return null;
+    if (seg.end - seg.start > MAX_SUBTITLE_AD_SEC) {
+      seg.start = Math.max(0, seg.end - MAX_SUBTITLE_AD_SEC);
+    }
     return validSeg(seg, duration) ? seg : null;
+  };
+
+  // 有品牌时只簇品牌句，避免 CTA/早段闲聊把窗拉太早
+  const pool = hasBrand && brandHits.length ? brandHits : hits;
+  let best = null;
+  for (const c of splitClusters(pool, CLUSTER_GAP)) {
+    const d = densestSubspan(c, MAX_SUBTITLE_AD_SEC);
+    if (!d || d.weight < 2) continue;
+    if (!best
+      || d.weight > best.weight
+      || (d.weight === best.weight && (d.end - d.start) < (best.end - best.start))) {
+      best = d;
+    }
   }
 
-  const strong = hits.find((h) => h.brands.length || h.matched.length >= 2);
+  if (best && best.end > best.start) {
+    let start = Math.max(0, best.start - (hasBrand ? PAD_START : 0));
+    let end = best.end + (hasBrand ? PAD_END : 0);
+    if (duration > 0) end = Math.min(duration - SEG_TAIL_GUARD_SEC - 0.1, end);
+    return clampSub({
+      start,
+      end,
+      source: hasBrand ? 'subtitle-brand' : 'subtitle',
+    });
+  }
+
+  const strong = hits.find((h) => (hasBrand && h.brands.length) || h.matched.length >= 2);
   if (strong) {
-    let start = Math.max(0, strong.to - 60);
+    let start = Math.max(0, strong.to - 45);
     if (danmaku?.length) {
-      const win = danmaku.filter((d) => d.time >= strong.to - 120 && d.time <= strong.to);
+      const win = danmaku.filter((d) => d.time >= strong.to - 90 && d.time <= strong.to);
       for (const d of win) {
         if (/(广告开始|开始恰饭|恰饭开始|广告来了|已买|购买|接广|广告|商单|恰饭|下单)/.test(d.text || '')) {
           start = Math.min(start, d.time);
@@ -184,16 +243,17 @@ export function detectFromSubtitles(lines, danmaku, duration) {
       }
     }
     let end = strong.to;
-    if (strong.brands.length) {
-      start = Math.max(0, strong.from - 8);
-      end = duration > 0 ? Math.min(duration - 3.1, strong.to + 45) : strong.to + 45;
+    if (hasBrand && strong.brands.length) {
+      start = Math.max(0, strong.from - PAD_START);
+      end = duration > 0
+        ? Math.min(duration - SEG_TAIL_GUARD_SEC - 0.1, strong.to + PAD_END)
+        : strong.to + PAD_END;
     }
-    const seg = {
+    return clampSub({
       start,
       end,
-      source: strong.brands.length ? 'subtitle-brand' : 'subtitle-cta',
-    };
-    return validSeg(seg, duration) ? seg : null;
+      source: (hasBrand && strong.brands.length) ? 'subtitle-brand' : 'subtitle-cta',
+    });
   }
   return null;
 }
@@ -212,12 +272,15 @@ export function detectFromCreatorMarks(text, duration) {
     if (end > start && end - start >= 8) return { start, end, source: 'creator-range' };
   }
 
-  m = raw.match(/(?:广告|恰饭|赞助|商单)[^0-9]{0,8}(?:到|至|结束(?:于|在)?|完(?:于|在)?)[^0-9]{0,6}(\d{1,2})[:：](\d{2})/i)
-    || raw.match(/(?:正片|正文)[^0-9]{0,6}(?:从|自|开始|起)?[^0-9]{0,4}(\d{1,2})[:：](\d{2})/i);
+  m = raw.match(/(?:广告|恰饭|赞助|商单)[^0-9]{0,8}(?:到|至|结束(?:于|在)?|完(?:于|在)?)[^0-9]{0,6}(\d{1,2})[:：](\d{2})/i);
   if (m) {
     const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    const start = Math.max(0, end - 60);
-    if (end - start >= 8) return { start: start < 5 && end > 20 ? 0.1 : start, end, source: 'creator-end' };
+    if (end >= 8) return { start: 0.1, end, source: 'creator-end' };
+  }
+  m = raw.match(/(?:正片|正文)\s*(?:从|自|开始于?|起于?|开始)\s*(\d{1,2})[:：](\d{2})/i);
+  if (m) {
+    const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    if (end >= 8) return { start: 0.1, end, source: 'creator-end' };
   }
 
   const entries = [];
@@ -258,7 +321,7 @@ export function detectFromJumpTexts(items, duration) {
   if (!votes.size) return null;
   const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
   const [bestEnd, bestScore] = ranked[0];
-  if (bestScore < 1.8) return null;
+  if (bestScore < JUMP_VOTE_MIN_SCORE) return null;
   let start = Math.max(0, bestEnd - 60);
   const related = pairs.filter((p) => Math.abs(p.end - bestEnd) <= 2 && p.end - p.start >= 20);
   if (related.length) {

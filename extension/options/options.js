@@ -1,11 +1,13 @@
-const DEFAULT_BRAND_KW = [
-  '转转', '爱回收', '闲鱼', '瓜子', '萤石', '山楂树下', '真我',
-  '神奇小鹿', '小鹿冰被', '躺岛', '蓝盒子', '半日闲', '时光存折', '栖作', '甜秘密',
-  '华味坊', '酸汤面叶', '劲仔', '卫龙', '盐津铺子', '三只松鼠', '良品铺子', '王小卤', '认养一头牛',
-  '妙界', '赫恩', '海洋至尊', '溪木源', '博乐达', '蜜丝婷',
-  '盖世小鸡', '飞智', '北通', '黑白调', '骁骑',
-  '瑞幸', '安克', '酷态科',
-];
+const DEFAULT_BRAND_KW = (typeof MAS_DEFAULT_BRAND_KW !== 'undefined' && MAS_DEFAULT_BRAND_KW.length)
+  ? MAS_DEFAULT_BRAND_KW.slice()
+  : [
+    '转转', '爱回收', '闲鱼', '瓜子', '萤石', '山楂树下', '真我',
+    '神奇小鹿', '小鹿冰被', '躺岛', '蓝盒子', '半日闲', '时光存折', '栖作', '甜秘密',
+    '华味坊', '酸汤面叶', '劲仔', '卫龙', '盐津铺子', '三只松鼠', '良品铺子', '王小卤', '认养一头牛',
+    '妙界', '赫恩', '海洋至尊', '溪木源', '博乐达', '蜜丝婷',
+    '盖世小鸡', '飞智', '北通', '黑白调', '骁骑',
+    '瑞幸', '安克', '酷态科',
+  ];
 
 const DEFAULTS = {
   autoSkip: true,
@@ -15,17 +17,30 @@ const DEFAULTS = {
   douyinFeedShop: true,
   douyinInVideo: true,
   biliInVideo: true,
-  feedPollMs: 1200,
+  feedPollMs: 1400,
   countdownSec: 3,
   softOralSkipSec: 35,
+  softOralAuto: false,
   useSponsorBlock: true,
   showUndoToast: true,
+  statsEnabled: false,
 };
 
 const BOOL_IDS = [
-  'autoSkip', 'showPanel', 'showUndoToast', 'useSponsorBlock',
+  'autoSkip', 'showPanel', 'showUndoToast', 'useSponsorBlock', 'softOralAuto',
   'biliInVideo', 'douyinInVideo', 'douyinFeedAd', 'douyinFeedLive', 'douyinFeedShop',
 ];
+
+const EMPTY_STATS = {
+  skipCount: 0,
+  undoCount: 0,
+  wrongCount: 0,
+  feedSwipeCount: 0,
+  feedAdCount: 0,
+  feedLiveCount: 0,
+  feedShopCount: 0,
+  savedSec: 0,
+};
 
 function linesToList(text) {
   return String(text || '')
@@ -38,12 +53,41 @@ function listToLines(arr) {
   return (arr || []).join('\n');
 }
 
+function formatSavedTime(sec) {
+  const n = Math.max(0, Math.floor(Number(sec) || 0));
+  if (n < 60) return `${n}秒`;
+  const m = Math.floor(n / 60);
+  const s = n % 60;
+  if (m < 60) return s ? `${m}分${s}秒` : `${m}分`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm ? `${h}小时${rm}分` : `${h}小时`;
+}
+
 function showToast(msg) {
   const toast = document.getElementById('toast');
   toast.textContent = msg || '已保存';
   toast.hidden = false;
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => { toast.hidden = true; }, 1600);
+}
+
+function renderStats(stats) {
+  const s = { ...EMPTY_STATS, ...(stats || {}) };
+  // 划走广告：广告卡 + 带货（用户感知都是广告）
+  const swipeAds = (Number(s.feedAdCount) || 0) + (Number(s.feedShopCount) || 0);
+  const feedAd = document.getElementById('statFeedAd');
+  const skip = document.getElementById('statSkip');
+  const saved = document.getElementById('statSaved');
+  if (feedAd) feedAd.textContent = String(swipeAds);
+  if (skip) skip.textContent = String(s.skipCount || 0);
+  if (saved) saved.textContent = formatSavedTime(s.savedSec);
+}
+
+async function loadStats() {
+  const { masStats = {} } = await chrome.storage.local.get(['masStats']);
+  renderStats(masStats);
+  return masStats;
 }
 
 async function loadFeedback() {
@@ -71,7 +115,7 @@ async function load() {
   }
   document.getElementById('countdownSec').value = cfg.countdownSec ?? 3;
   document.getElementById('softOralSkipSec').value = cfg.softOralSkipSec ?? 35;
-  document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 700;
+  document.getElementById('feedPollMs').value = cfg.feedPollMs ?? 1400;
 
   let brands = local.brandKeywords || cfg.brandKeywords || DEFAULT_BRAND_KW;
   if (!Array.isArray(brands)) brands = DEFAULT_BRAND_KW.slice();
@@ -90,6 +134,7 @@ async function load() {
   document.getElementById('blockBvids').value = listToLines(local.blockBvids || cfg.blockBvids || []);
   document.getElementById('blockMids').value = listToLines(local.blockMids || cfg.blockMids || []);
   await loadFeedback();
+  await loadStats();
 }
 
 async function save() {
@@ -99,17 +144,23 @@ async function save() {
   }
   cfg.countdownSec = Math.max(0, Math.min(15, Number(document.getElementById('countdownSec').value) || 0));
   cfg.softOralSkipSec = Math.max(15, Math.min(90, Number(document.getElementById('softOralSkipSec').value) || 35));
-  cfg.feedPollMs = Math.max(400, Math.min(3000, Number(document.getElementById('feedPollMs').value) || 700));
+  cfg.feedPollMs = Math.max(400, Math.min(3000, Number(document.getElementById('feedPollMs').value) || 1400));
   const brandKeywords = linesToList(document.getElementById('brandKeywords').value);
   const blockBvids = linesToList(document.getElementById('blockBvids').value);
   const blockMids = linesToList(document.getElementById('blockMids').value);
 
   await chrome.storage.sync.set({ cfg });
   await chrome.storage.local.set({ brandKeywords, blockBvids, blockMids });
+  await loadStats();
   showToast('已保存');
 }
 
 document.getElementById('save').addEventListener('click', save);
+document.getElementById('resetStats')?.addEventListener('click', async () => {
+  await chrome.storage.local.set({ masStats: { ...EMPTY_STATS } });
+  await loadStats();
+  showToast('统计已清零');
+});
 document.getElementById('resetBrands').addEventListener('click', () => {
   document.getElementById('brandKeywords').value = DEFAULT_BRAND_KW.join('\n');
   showToast('已恢复默认品牌词（记得保存）');

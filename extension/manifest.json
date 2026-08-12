@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Media Ad Skip",
-  "version": "1.5.34",
-  "description": "仅在 B站/抖音页面工作：SponsorBlock、字幕品牌词、看点广告。",
+  "version": "1.5.64",
+  "description": "像绯红之王一样删除广告时间。B站 / 抖音网页版片内与信息流跳过。",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -11,7 +11,7 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Media Ad Skip",
+    "default_title": "Media Ad Skip · 删除广告时间",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -23,8 +23,7 @@
     "open_in_tab": true
   },
   "background": {
-    "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
   "browser_specific_settings": {
     "gecko": {

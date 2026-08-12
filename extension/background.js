@@ -33,10 +33,16 @@ async function fetchLatestVersion() {
       const j = await r.json();
       const tag = String(j.tag_name || '').replace(/^v/i, '');
       if (tag) {
+        const assets = Array.isArray(j.assets) ? j.assets : [];
+        const stable = assets.find((a) => a?.name === 'media-ad-skip-extension.zip');
+        const anyZip = assets.find((a) => /\.zip$/i.test(a?.name || ''));
+        const zip = stable?.browser_download_url
+          || anyZip?.browser_download_url
+          || `https://github.com/${REPO}/releases/latest/download/media-ad-skip-extension.zip`;
         return {
           version: tag,
           url: j.html_url || `https://github.com/${REPO}/releases/latest`,
-          zip: `https://github.com/${REPO}/archive/refs/tags/${j.tag_name || tag}.zip`,
+          zip,
           name: j.name || tag,
         };
       }
@@ -52,8 +58,8 @@ async function fetchLatestVersion() {
   if (!tag) throw new Error('no tags');
   return {
     version: tag,
-    url: `https://github.com/${REPO}/releases`,
-    zip: `https://github.com/${REPO}/archive/refs/tags/${tags[0].name}.zip`,
+    url: `https://github.com/${REPO}/releases/latest`,
+    zip: `https://github.com/${REPO}/releases/latest/download/media-ad-skip-extension.zip`,
     name: tag,
   };
 }
@@ -119,12 +125,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             biliInVideo: true,
             countdownSec: 3,
             softOralSkipSec: 35,
-            feedPollMs: 1200,
+            feedPollMs: 1400,
             crashSafe131: true,
             feedSwipe1520: true,
             feedSwipe1523: true,
             feedSep1528: true,
             feedLiveOff1529: true,
+            feedFast1554: true,
+            crashSafe1562: true,
           },
         });
       }
@@ -156,6 +164,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         next.douyinFeedAd = true;
         next.douyinFeedShop = true;
         next.feedLiveOff1529 = true;
+        dirty = true;
+      }
+      // 1.5.54：信息流检测默认加快（旧 1400 体感慢）
+      if (cfg.feedFast1554 !== true) {
+        const cur = Number(cfg.feedPollMs);
+        if (!Number.isFinite(cur) || cur >= 1200) next.feedPollMs = 700;
+        next.feedFast1554 = true;
+        dirty = true;
+      }
+      // 1.5.62：Crashpad 连环崩 → 默认轮询回 1400，禁 elementFromPoint
+      if (cfg.crashSafe1562 !== true) {
+        next.feedPollMs = 1400;
+        next.crashSafe1562 = true;
         dirty = true;
       }
       if (dirty) await chrome.storage.sync.set({ cfg: next });
@@ -194,6 +215,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       const res = await fetch(msg.url, { credentials: 'omit' });
       const text = await res.text();
+if (text.length > 800000) {
+        sendResponse({ ok: false, error: 'response too large' });
+        return;
+      }
       let data = null;
       try {
         data = JSON.parse(text);

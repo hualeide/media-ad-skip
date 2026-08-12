@@ -1,0 +1,26 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Unit self-test
+        run: node scripts/self-test.mjs
+      - name: Crash guard static
+        run: node scripts/crash-guard-check.mjs
+      - name: Crash stress
+        run: node scripts/crash-stress.mjs
+      - name: Build extension content
+        run: node scripts/build-extension-content.mjs
+      - name: Re-check after build
+        run: |
+          node scripts/crash-guard-check.mjs
+          node --check extension/content/content.js

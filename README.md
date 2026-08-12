@@ -1,6 +1,9 @@
 # Media Ad Skip
 
-[![Version](https://img.shields.io/badge/version-1.5.34-blue.svg)](./extension/manifest.json)
+> **像绯红之王一样删除广告时间。**  
+> 这不是广告拦截，这是时间删除。
+
+[![Release](https://img.shields.io/github/v/release/hualeide/media-ad-skip?label=release)](https://github.com/hualeide/media-ad-skip/releases/latest)
 [![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Sites](https://img.shields.io/badge/Sites-Bilibili%20%2B%20Douyin-green.svg)](#-作用)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
@@ -8,7 +11,8 @@
 B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromium / Firefox 扩展（MV3）** 与 **油猴脚本** 两种形态，核心逻辑同源。
 
 > **安装**：打开 [一页安装说明](https://hualeide.github.io/media-ad-skip/)（下载 ZIP → 按浏览器步骤加载）。  
-> **仅在 B站、抖音页面注入**；其它网站不会运行。当前 **1.5.34**。隐私说明见 [`extension/PRIVACY.md`](extension/PRIVACY.md)。
+> **仅在 B站、抖音页面注入**；其它网站不会运行。隐私说明见 [`extension/PRIVACY.md`](extension/PRIVACY.md)。  
+> **始终最新包**：[Releases / latest](https://github.com/hualeide/media-ad-skip/releases/latest) · [直链 ZIP](https://github.com/hualeide/media-ad-skip/releases/latest/download/media-ad-skip-extension.zip)（固定文件名，随最新 Release 更新）
 
 ---
 
@@ -29,9 +33,10 @@ B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromi
 
 任选其一：
 
-- **GitHub**：打开 [本仓库](https://github.com/hualeide/media-ad-skip) → 绿色 **Code** → **Download ZIP** → 解压到任意目录  
+- **推荐（最新扩展包）**：[直链 ZIP](https://github.com/hualeide/media-ad-skip/releases/latest/download/media-ad-skip-extension.zip)（解压后应直接有 `manifest.json`）
+- **Release 页**：[Latest Release](https://github.com/hualeide/media-ad-skip/releases/latest)
+- **GitHub 源码**：打开 [本仓库](https://github.com/hualeide/media-ad-skip) → 绿色 **Code** → **Download ZIP** → 再进 `extension/`
 - **Git**：`git clone https://github.com/hualeide/media-ad-skip.git`
-- **Release zip**：[Releases](https://github.com/hualeide/media-ad-skip/releases) 下载扩展包解压后，里面应直接有 `manifest.json`
 
 确认目录里有：`manifest.json`、`background.js`、`content/`（选 **这一层**，不是仓库根目录）。
 
@@ -91,33 +96,64 @@ B站 + 抖音**网页版**片内 / 信息流广告跳过工具。提供 **Chromi
 
 ## 原理（简要）
 
-整体是「**检出广告时间段 → 播放头进入段内则 seek 到段末**」，不改视频文件、不劫持解码。
+整体是「**检出广告时间段 → 播放头进入段内则 seek 到段末**」，不改视频文件、不劫持解码。抖音推荐流另走「识别卡片 → 划到下一条」。
 
+### 启动分流
+
+```mermaid
+flowchart TD
+  A[boot] --> B{站点?}
+  B -->|B站| C[runBilibili 片内跳]
+  B -->|抖音| D[startFeed ~0.7s]
+  D --> E[installDouyinFeedHooks]
+  D --> F[startFeedPoll]
+  A --> G[startUi 稍后]
+  G --> H{shouldAnalyzeDouyinInVideo?}
+  H -->|否 recommend 推荐流| I[只划走 不做片内分析]
+  H -->|是 /video 或 modal_id| J[douyinAnalyzeInVideo 片内空降]
 ```
-视频页注入脚本
-    │
-    ├─ 拉取/解析「广告区间」[start, end]
-    │     B站：SponsorBlock → 章节/简介 → 字幕+弹幕品牌词
-    │     抖音：官方广告看点 → 字幕轨 → 软跳（仅有起点无终点时）
-    │
-    ├─ 定时读 currentTime，落入区间则 seek 到 end
-    │     抖音：seek 后短轮询确认，失败不硬刷页面
-    │
-    └─ toast 延后弹出（与 seek 不同帧，降低卡顿）
+
+### 抖音推荐流：划走
+
+```mermaid
+flowchart TD
+  P[startFeedPoll ~700ms] -->|换 awemeId| T[douyinFeedTick]
+  T --> M{awemeMeta API?}
+  M -->|缺| C[classifyActiveFeed]
+  M -->|有| D{广告 / 购物 / 直播?}
+  C --> D
+  D -->|直播且正片还在| X[清 live 不划弹窗]
+  D -->|命中且开关开| S[swipeToNextFeed]
+  D -->|无| Z[return]
+  S --> A[afterFeedSwiped]
+  A -->|确认换卡| ST[recordStat + 延迟轻提示]
+  A -->|未换卡| S2[hard 补划再确认]
+```
+
+判定顺序：API 标记 → DOM（广告 SVG / 购物入口 / 整卡 LivePlayer）→ 弹窗闸门 → 广告优先于购物、直播 → 先滑后提示。
+
+| URL | 行为 |
+|-----|------|
+| `douyin.com/?recommend=1` | 只**划走**信息流广告/带货（及你开启的直播卡） |
+| `/video/数字` 或 `modal_id=` | 划走 + **片内空降** |
+
+### 抖音详情：片内
+
+```mermaid
+flowchart LR
+  V["/video/id 或 modal"] --> A[douyinAnalyzeInVideo]
+  A --> Ch[官方广告看点]
+  Ch -->|无| Sub[字幕估口播]
+  Sub -->|无| Mark[简介标注]
+  Mark -->|无| Soft[软跳提示]
+  Ch --> Seek[seek / autoSkip]
 ```
 
 ### B 站
 
 1. 用 `bvid` 请求 [SponsorBlock](https://bsbsb.top) 公开分段（可关）。
-2. 无 SB 或需补充时：解析章节/简介里的「广告开始～结束」、字幕与弹幕中的品牌词/时间戳，合成区间。
-3. `watchPlayback` 约每 400ms 检查；进入区间则 `video.currentTime = end`。
-
-### 抖音
-
-1. 从当前激活 feed 卡取 `aweme_id` 与详情里的看点列表；官方标了广告索引的看点优先信任。
-2. 区间大致为「广告看点起点 → 下一看点 + 短缓冲」；口播偏长时拉伸到约 32–40s，避免跳太早。
-3. 无看点时：若有字幕轨，用品牌词估跳；仍无终点可按设置做一次**软跳**（默认约 35s）。无依据不瞎跳。
-4. 信息流：按配置划走广告/直播等卡片（与片内 seek 独立）。
+2. 无 SB 或需补充时：章节/简介、「广告开始～结束」、字幕与弹幕品牌词/时间戳。
+3. `watchPlayback` 约每 400ms 检查；进入区间则 `seek` 到段末。
 
 ### 双形态
 

@@ -10,7 +10,7 @@ const DEFAULTS = {
   biliInVideo: true,
   countdownSec: 3,
   softOralSkipSec: 35,
-  feedPollMs: 1200,
+  feedPollMs: 1400,
 };
 
 let lastVideoId = null;
@@ -61,6 +61,31 @@ async function sendCmd(cmd, extra = {}) {
 
 function setStatus(text) {
   document.getElementById('status').textContent = text || '待命';
+}
+
+async function refreshFeedStat() {
+  const el = document.getElementById('feedStat');
+  if (!el) return;
+  try {
+    const { masStats = {} } = await chrome.storage.local.get(['masStats']);
+    const ad = (Number(masStats.feedAdCount) || 0) + (Number(masStats.feedShopCount) || 0);
+    const skip = Number(masStats.skipCount) || 0;
+    const sec = Math.max(0, Math.floor(Number(masStats.savedSec) || 0));
+    let saved = `${sec}秒`;
+    if (sec >= 60) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      saved = s ? `${m}分${s}秒` : `${m}分`;
+      if (m >= 60) {
+        const h = Math.floor(m / 60);
+        const rm = m % 60;
+        saved = rm ? `${h}小时${rm}分` : `${h}小时`;
+      }
+    }
+    el.textContent = `划走 ${ad} · 跳过 ${skip} · 已删 ${saved}`;
+  } catch {
+    el.textContent = '划走 — · 跳过 — · 已删 —';
+  }
 }
 
 function setBlockUi(blocked) {
@@ -227,8 +252,14 @@ async function load() {
   document.getElementById('autoSkip').checked = c.autoSkip !== false;
   document.getElementById('feedAd').checked = !!(c.douyinFeedAd || c.douyinFeedShop);
   document.getElementById('feedLive').checked = !!c.douyinFeedLive;
+  await refreshFeedStat();
   await refreshStatus();
   await refreshUpdate(false);
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.masStats) refreshFeedStat();
+    });
+  } catch { /* ignore */ }
   // 打开弹窗时轻量检查（后台有缓存）
   chrome.runtime.sendMessage({ type: 'MAS_CHECK_UPDATE', force: false }).then((res) => {
     if (res?.ok) renderUpdate(res.meta);

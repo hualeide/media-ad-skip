@@ -63,6 +63,34 @@ if (!deerSeg || deerSeg.source !== 'subtitle-brand') {
 }
 console.log('OK deer brand', deerSeg);
 
+// 早段误提品牌 + 后段真口播：应贴后段，不能从 40s 起跳
+const gapLines = [
+  ...filler(5),
+  { from: 40, to: 42, content: '我刚用过转转' },
+  { from: 100, to: 103, content: '今天给大家推荐转转' },
+  { from: 104, to: 108, content: '闲置可以爱回收' },
+];
+const gapSeg = detectFromSubtitles(gapLines, [], 300);
+if (!gapSeg || gapSeg.source !== 'subtitle-brand' || gapSeg.start < 90 || gapSeg.start > 102) {
+  throw new Error(`gap cluster ${JSON.stringify(gapSeg)}`);
+}
+if (gapSeg.end - gapSeg.start > 75) throw new Error(`gap too wide ${JSON.stringify(gapSeg)}`);
+console.log('OK gap-tight subtitle-brand', gapSeg);
+
+// «Sad Songs» 章节不得因含 ad 子串误跳
+function labelLooksAdSelfTest(text) {
+  const raw = String(text || '');
+  if (/(广告|广告时间|恰饭|赞助|商单|推广|软广)/.test(raw)) return true;
+  return /\bads?\b|\bsponsors?\b|\bsponsored\b|\badvert(?:s|ising|isement)?\b/i.test(raw);
+}
+if (labelLooksAdSelfTest('Good Things Fall Apart vs. Sad Songs')) {
+  throw new Error('false chapter ad on Sad Songs');
+}
+if (!labelLooksAdSelfTest('广告时间') || !labelLooksAdSelfTest('Skip Ads break') || !labelLooksAdSelfTest('sponsor break')) {
+  throw new Error('chapter ad positive miss');
+}
+console.log('OK chapter labelLooksAd');
+
 const weakLines = [
   ...filler(5),
   { from: 50, to: 52, content: '我今天购买了一本书' },
@@ -76,4 +104,4 @@ if (isBlockedUp(1, ['491780876'])) throw new Error('mid block fp');
 if (isBlockedUp(null, ['1'])) throw new Error('mid null');
 console.log('OK mid blacklist');
 
-console.log(`全部通过 ${pass + 5}`);
+console.log(`全部通过 ${pass + 7}`);

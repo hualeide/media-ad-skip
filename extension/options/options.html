@@ -13,8 +13,34 @@
         <h1>Media Ad Skip</h1>
         <span id="extVersion" class="pill">…</span>
       </div>
-      <p>B站 / 抖音网页版 · 片内广告跳过与信息流划走</p>
+      <p>像绯红之王一样删除广告时间</p>
+      <p class="hint">这不是广告拦截，这是时间删除。</p>
     </header>
+
+    <section class="stats-hero-section">
+      <h2>已删除的广告</h2>
+      <p class="hint">本地累计，不上传。数字越大，省下的时间越多。</p>
+      <div id="statsBox" class="stats-hero">
+        <div class="stats-hero-card accent-ad">
+          <span class="stats-hero-num" id="statFeedAd">0</span>
+          <span class="stats-hero-label">划走广告</span>
+          <span class="stats-hero-sub">抖音信息流</span>
+        </div>
+        <div class="stats-hero-card accent-skip">
+          <span class="stats-hero-num" id="statSkip">0</span>
+          <span class="stats-hero-label">跳过次数</span>
+          <span class="stats-hero-sub">片内空降</span>
+        </div>
+        <div class="stats-hero-card accent-time">
+          <span class="stats-hero-num" id="statSaved">0秒</span>
+          <span class="stats-hero-label">累计删除</span>
+          <span class="stats-hero-sub">省下的广告时间</span>
+        </div>
+      </div>
+      <div class="row-actions stats-hero-actions">
+        <button type="button" id="resetStats" class="secondary">清零</button>
+      </div>
+    </section>
 
     <section>
       <h2>通用</h2>
@@ -27,7 +53,8 @@
       <label class="row">无时间戳时软跳（秒）
         <input type="number" id="softOralSkipSec" min="15" max="90" step="1" title="口播无看点/字幕时，从当前进度跳过的秒数" />
       </label>
-      <p class="hint">软跳：只有「疑似口播但无终点」时，点弹窗「立即跳过 / 约N秒」才会用。</p>
+      <label><input type="checkbox" id="softOralAuto" /> 口播无终点时倒计时自动软跳（默认关，易误跳）</label>
+      <p class="hint">软跳：只有「疑似口播但无终点」时可用。自动软跳会从当前进度跳过上方秒数，请谨慎开启。</p>
     </section>
 
     <section>
@@ -46,6 +73,11 @@
         <input type="number" id="feedPollMs" min="400" max="3000" step="50" />
       </label>
       <p class="hint">有官方广告看点或字幕品牌词时可自动空降；纯口播无时间轴只能软跳或点官方「跳过广告」。</p>
+    </section>
+
+    <section>
+      <h2>注意</h2>
+      <p class="hint">请勿同时启用本扩展与油猴脚本 <code>media-ad-skip.user.js</code>，二者会互相挡版本、重复跳过。只留一个即可。</p>
     </section>
 
     <section>
@@ -95,6 +127,7 @@
       <p class="privacy">仅在你打开的 B站 / 抖音页运行；会请求 SponsorBlock 镜像与平台公开 API。详见 <code>extension/PRIVACY.md</code>。</p>
     </footer>
   </main>
+  <script src="../shared/config.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
