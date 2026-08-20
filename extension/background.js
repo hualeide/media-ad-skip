@@ -118,6 +118,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             showPanel: false,
             showUndoToast: true,
             useSponsorBlock: true,
+            useDanmakuDetect: false,
+            useCreatorMarks: false,
             douyinInVideo: true,
             douyinFeedAd: true,
             douyinFeedLive: false,
@@ -133,6 +135,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             feedLiveOff1529: true,
             feedFast1554: true,
             crashSafe1562: true,
+            danmakuOff1568: true,
+            creatorOff1569: true,
           },
         });
       }
@@ -177,6 +181,18 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       if (cfg.crashSafe1562 !== true) {
         next.feedPollMs = 1400;
         next.crashSafe1562 = true;
+        dirty = true;
+      }
+      // 1.5.68：弹幕检测默认关（剧透/吐槽误伤）
+      if (cfg.danmakuOff1568 !== true) {
+        next.useDanmakuDetect = false;
+        next.danmakuOff1568 = true;
+        dirty = true;
+      }
+      // 1.5.69：简介自标默认关（多数视频不写恰饭轴）
+      if (cfg.creatorOff1569 !== true) {
+        next.useCreatorMarks = false;
+        next.creatorOff1569 = true;
         dirty = true;
       }
       if (dirty) await chrome.storage.sync.set({ cfg: next });

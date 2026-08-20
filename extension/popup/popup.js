@@ -3,6 +3,8 @@ const DEFAULTS = {
   showPanel: false,
   showUndoToast: true,
   useSponsorBlock: true,
+  useDanmakuDetect: false,
+  useCreatorMarks: false,
   douyinInVideo: true,
   douyinFeedAd: true,
   douyinFeedLive: false,

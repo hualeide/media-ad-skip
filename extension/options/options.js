@@ -22,12 +22,14 @@ const DEFAULTS = {
   softOralSkipSec: 35,
   softOralAuto: false,
   useSponsorBlock: true,
+  useDanmakuDetect: false,
+  useCreatorMarks: false,
   showUndoToast: true,
   statsEnabled: false,
 };
 
 const BOOL_IDS = [
-  'autoSkip', 'showPanel', 'showUndoToast', 'useSponsorBlock', 'softOralAuto',
+  'autoSkip', 'showPanel', 'showUndoToast', 'useSponsorBlock', 'useCreatorMarks', 'useDanmakuDetect', 'softOralAuto',
   'biliInVideo', 'douyinInVideo', 'douyinFeedAd', 'douyinFeedLive', 'douyinFeedShop',
 ];
 

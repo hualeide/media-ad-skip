@@ -43,7 +43,12 @@ B站 + 抖音**网页版**广告时间跳过工具：MV3 扩展 + Tampermonkey �
 
 ### B站片内
 
-管道大致顺序（见 `analyze` / pipeline）：作者自标 → 章节 `view_points` → 弹幕时间戳 → 字幕品牌/CTA → SponsorBlock 等。  
+实际消费顺序（见 `runBilibili` / `analyze`）：
+
+1. **SponsorBlock 优先短路**（有 SB 段则直接采用，不进后面 pipeline）
+2. pipeline：`chapter(view_points)` → `subtitle(字幕品牌/CTA)`  
+   （简介自标 / 弹幕 **默认关闭**；选项可开 `useCreatorMarks` / `useDanmakuDetect`）
+
 命中后 `doSkip`；用户撤销后本片禁再自动跳同段（`undoneKeys`）。
 
 **已知误伤（已修，回归勿回退）：**
@@ -73,8 +78,8 @@ node scripts/read-crash-dumps.mjs   # 需本机有 Chrome Crashpad
 ## 建议审阅顺序（给 Claude）
 
 1. 读本文件 + `README.md` 原理/安装约束。  
-2. `src/detect-core.mjs`：`detectFromSubtitles`、`validSeg`、作者标记。  
-3. `media-ad-skip.user.js`：`labelLooksAd` / `detectFromChapters`、抖音 `classifyActiveFeed`、toast、delayed `start`。  
+2. `src/detect-core.mjs`：`detectFromSubtitles`、`labelLooksAd`、`validSeg`、作者标记。  
+3. `media-ad-skip.user.js`：同构 `labelLooksAd` / `detectFromChapters`、抖音 `classifyActiveFeed`、toast、delayed `start`。  
 4. `scripts/crash-guard-check.mjs`：当前禁止项是否仍合理。  
 5. 若任务是「又崩了」：先跑 `read-crash-dumps.mjs`，看 URL 是否在扩展 match 内；京东/B站动态等**不注入**页的崩不要怪本扩展。Dark Reader 等全局扩展曾与同款 FATAL 同框出现。
 

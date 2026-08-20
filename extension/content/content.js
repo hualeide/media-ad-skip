@@ -4,9 +4,9 @@
   const IS_EXT = typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
   // 扩展 / 油猴分桶，避免互相 early-return 导致函数未定义
   const MAS_VER_KEY = IS_EXT ? '__MAS_VER_EXT__' : '__MAS_VER_GM__';
-  if (window[MAS_VER_KEY] === '1.5.64') return;
-  window[MAS_VER_KEY] = '1.5.64';
-  window.__MAS_VER__ = '1.5.64';
+  if (window[MAS_VER_KEY] === '1.5.71') return;
+  window[MAS_VER_KEY] = '1.5.71';
+  window.__MAS_VER__ = '1.5.71';
 
   const HOST = location.hostname;
   const IS_BILI = HOST.includes('bilibili.com');
@@ -50,6 +50,8 @@
     softOralSkipSec: 35,
     softOralAuto: false,
     useSponsorBlock: true,
+    useDanmakuDetect: false,
+    useCreatorMarks: false,
     showUndoToast: true,
     statsEnabled: false,
     brandKeywords: DEFAULT_BRAND_KW.slice(),
@@ -424,10 +426,9 @@
   const AD_START = ['广告开始', '开始恰饭', '恰饭开始', '广告来了', '开始推广', '金主来了', '广告时间'];
   const AD_END = ['广告结束', '欢迎回来', '恰饭结束', '回来了', '广告完了', '正片开始', '回归正片'];
   /* 弹幕泛词 + 品牌：见 generalKw() */
-  const AD_LABEL = ['广告', 'ad', 'sponsor', '赞助', '商单', '恰饭', '推广'];
   const SKIP_BTN_TEXT = ['跳过广告', '关闭广告', 'Skip Ad', 'Skip Ads'];
 
-  /** 章节/时间轴是否广告：英文 ad 必须整词，防 «Sad Songs» / «Fall Apart» 误伤 */
+  /** 章节/时间轴是否广告：须与 src/detect-core.mjs#labelLooksAd 保持同构 */
   function labelLooksAd(text) {
     const raw = String(text || '');
     if (/(广告|广告时间|恰饭|赞助|商单|推广|软广)/.test(raw)) return true;
@@ -870,6 +871,13 @@
     m = t.match(/(?:空降(?!兵)|跳过|快进|指路|进度条|跳到|直达)[^\d]{0,8}(\d{2,4})\s*[秒sS]/);
     if (m) return { time: parseInt(m[1], 10), conf: 1.4 };
 
+    m = (raw + t).match(/(\d{1,3}[:：]\d{2}).{0,6}(?:mark|标记)/i)
+      || (raw + t).match(/(?:mark|标记).{0,6}(\d{1,3}[:：]\d{2})/i);
+    if (m) {
+      const p = m[1].match(/(\d{1,3})[:：](\d{2})/);
+      if (p) return { time: parseInt(p[1], 10) * 60 + parseInt(p[2], 10), conf: 1.2 };
+    }
+
     return null;
   }
 
@@ -1135,8 +1143,7 @@
     activeSeg = null;
     activeSegs = [];
     skippedKeys = new Set();
-    undoneKeys = new Set();
-    undoneRange = null;
+    // 撤销语义：本片内禁止再自动跳；仅「本集不跳」会连同 undoneKeys 一起清空
     lastSkip = null;
     softOralReady = false;
     if (pendingSkip?.timer) clearTimeout(pendingSkip.timer);
@@ -1179,17 +1186,28 @@
    */
   function detectFromJumpTexts(items, duration) {
     const votes = new Map(); // endSec -> score
+    const ctxScore = new Map();
     const pairs = [];
+    const seenText = new Set();
 
     for (const it of items) {
       const info = extractTimeFromText(it.text);
       if (!info) continue;
       const end = Math.round(info.time);
       if (end <= 0 || (duration > 0 && end >= duration - 5)) continue;
+      const text = String(it.text || '').replace(/\s+/g, '');
+      const dedupeKey = `${end}|${text}`;
+      if (seenText.has(dedupeKey)) continue;
+      seenText.add(dedupeKey);
 
       let score = info.conf;
-      if (/(空降|跳过|快进|广告|恰饭|指路)/.test(it.text)) score += 0.8;
+      const adCtx = /(广告|恰饭|赞助|商单|正片|金主|软广)/.test(text);
+      const langTip = /(?:谢谢|感谢).{0,12}分|(?:\d)\s*分\s*\d{1,2}\s*(?:郎|君)/.test(text);
+      if (/(空降(?!兵)|跳过|快进|广告|恰饭|指路|谢谢|感谢)/.test(text)) {
+        score += adCtx || langTip ? 0.8 : 0.25;
+      }
       votes.set(end, (votes.get(end) || 0) + score);
+      if (adCtx || langTip) ctxScore.set(end, (ctxScore.get(end) || 0) + score);
 
       if (typeof it.time === 'number' && !Number.isNaN(it.time)) {
         pairs.push({ start: it.time, end, score });
@@ -1211,6 +1229,9 @@
       start = related[0].start + 2;
     }
 
+    // 纯剧透空降（无广告/郎语境）禁止拉超长段
+    if ((ctxScore.get(bestEnd) || 0) < 0.9 && bestEnd - start > MAX_SUBTITLE_AD_SEC) return null;
+
     const seg = { start, end: bestEnd, source: 'timestamp' };
     return validSeg(seg, duration) ? seg : null;
   }
@@ -1219,6 +1240,7 @@
     const starts = [];
     const ends = [];
     const generals = [];
+    const cueKw = generalCueKw();
 
     for (const it of items) {
       const t = (it.text || '').trim();
@@ -1226,7 +1248,8 @@
       if (time == null) continue;
       if (AD_START.some((k) => t.includes(k))) starts.push(time);
       if (AD_END.some((k) => t.includes(k))) ends.push(time);
-      if (generalKw().some((k) => t.includes(k))) generals.push(time);
+      if (isWeakAdGossip(t)) continue;
+      if (cueKw.some((k) => t.includes(k))) generals.push(time);
     }
 
     const sc = findDenseCluster(starts, 20, 2);
@@ -1236,7 +1259,8 @@
       if (validSeg(seg, duration)) return seg;
     }
 
-    const gc = findDenseCluster(generals, 90, 3);
+    // 泛词簇：窗口收紧 + 至少 4 条，避免「广告吗」吐槽刷屏误跳
+    const gc = findDenseCluster(generals, 50, 4);
     if (gc && gc.end - gc.start >= 20) {
       const seg = { start: Math.max(0, gc.start - 3), end: gc.end, source: 'keyword-general' };
       if (validSeg(seg, duration)) return seg;
@@ -1488,7 +1512,15 @@
       forgetRejectKey(currentVideoId(), key);
     }
     if (pendingSkip?.key === key) {
-      seekTo(pendingSkip.target);
+      const target = pendingSkip.target;
+      if (pendingSkip.timer) clearInterval(pendingSkip.timer);
+      if (seekTo(target)) {
+        const fromTime = getVideoEl()?.currentTime ?? seg.start;
+        skippedKeys.add(key);
+        lastSkip = { fromTime, toTime: target, key, seg };
+        pendingSkip = null;
+        setStatus(`已跳过 ${formatTime(seg.start)} → ${formatTime(seg.end)}`);
+      }
       return;
     }
     // 换段前清掉上一次确认轮询，避免定时器叠多层
@@ -1823,6 +1855,7 @@
       const start = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
       const end = parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
       const seg = { start, end, source: 'creator-range' };
+      if (end - start > MAX_AD_SEC) return null;
       if (validSeg(seg, duration) || (end > start && end - start >= 8)) return seg;
     }
 
@@ -1831,14 +1864,14 @@
     if (m) {
       const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
       const seg = { start: 0.1, end, source: 'creator-end' };
-      if (end >= 8 && end < (duration || 99999) - 3) return seg;
+      if (end >= 8 && end <= MAX_AD_SEC && end < (duration || 99999) - 3) return seg;
     }
     // 正片从 2:00 / 正文开始于 1:30（连接词必填，防评论误伤）
     m = raw.match(/(?:正片|正文)\s*(?:从|自|开始于?|起于?|开始)\s*(\d{1,2})[:：](\d{2})/i);
     if (m) {
       const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
       const seg = { start: 0.1, end, source: 'creator-end' };
-      if (end >= 8 && end < (duration || 99999) - 3) return seg;
+      if (end >= 8 && end <= MAX_AD_SEC && end < (duration || 99999) - 3) return seg;
     }
 
     // 时间轴列表
@@ -1880,6 +1913,7 @@
         end = entries[i + 1].start;
       }
       const seg = { start, end, source: 'creator-timeline' };
+      if (end - start > MAX_AD_SEC) continue;
       if (end > start && end - start >= 8) return seg;
     }
     return null;
@@ -1909,16 +1943,16 @@
       const url = `https://bsbsb.top/api/skipSegments?videoID=${encodeURIComponent(bvid)}&categories=${encodeURIComponent(JSON.stringify(['sponsor']))}`;
       const data = await proxyFetchJson(url);
       if (!Array.isArray(data)) return [];
-      // votes：镜像库常见 0；仅丢掉明显差评（官方客户端约 > -2）
+      // 镜像库常见 votes=0；丢掉差评与过短碎片（曾出现 5s「三段」噪音）
       return data
-        .filter((s) => s.actionType === 'skip' && s.category === 'sponsor' && (s.votes ?? 0) > -2)
+        .filter((s) => s.actionType === 'skip' && s.category === 'sponsor' && (s.votes ?? 0) >= 0)
         .map((s) => ({
           start: s.segment[0],
           end: s.segment[1],
           source: 'sponsorblock',
           votes: s.votes ?? 0,
         }))
-        .filter((s) => s.end - s.start >= 5 && s.end - s.start <= MAX_AD_SEC)
+        .filter((s) => s.end - s.start >= MIN_AD_SEC && s.end - s.start <= MAX_AD_SEC)
         .sort((a, b) => a.start - b.start);
     } catch (e) {
       log('sponsorblock fail', e);
@@ -1927,7 +1961,8 @@
   }
 
   /**
-   * B站主流程：SB → 章节 → 简介 → 字幕 → 弹幕时间戳 → 关键词。
+   * B站主流程：SB → 章节 → 字幕；（可选）简介自标 / 弹幕。
+   * 简介与弹幕默认关：多数视频不写恰饭轴，弹幕则易剧透/吐槽误伤。
    * 全程用 analyzeGen：换片后旧请求回来必须丢弃，否则会串台误跳。
    */
   async function runBilibili(forceKey) {
@@ -1962,20 +1997,20 @@
     }
     lastKey = key;
     skippedKeys = new Set();
-    undoneKeys = new Set();
-    undoneRange = null;
+    // 重分析不得抹掉本片已撤销段，否则点过撤销会再自动跳
     activeSeg = null;
     activeSegs = [];
     applyRejectsToSession(meta.bvid);
 
+    const wantDm = cfg.useDanmakuDetect === true;
     const [danmaku, player, sbSegs] = await Promise.all([
-      biliFetchDanmaku(meta.cid, meta.duration),
+      wantDm ? biliFetchDanmaku(meta.cid, meta.duration) : Promise.resolve([]),
       biliFetchPlayer(meta.bvid, meta.cid),
       fetchSponsorBlock(meta.bvid),
     ]);
     if (!analysisStillCurrent(gen, meta.bvid)) return;
     const { viewPoints, subtitles } = player;
-    log('bili', meta.bvid, 'dm', danmaku.length, 'sb', sbSegs.length);
+    log('bili', meta.bvid, 'dm', danmaku.length, 'sb', sbSegs.length, 'dmDetect', wantDm);
 
     if (sbSegs.length) {
       activeSegs = sbSegs;
@@ -1994,10 +2029,12 @@
 
     const pipeline = [
       () => detectFromChapters(viewPoints),
-      () => detectFromDesc(meta.desc, meta.duration),
-      () => detectFromSubtitles(subtitleLines, danmaku, meta.duration),
-      () => detectFromJumpTexts(danmaku, meta.duration),
-      () => detectFromKeywords(danmaku, meta.duration),
+      ...(cfg.useCreatorMarks === true ? [() => detectFromDesc(meta.desc, meta.duration)] : []),
+      () => detectFromSubtitles(subtitleLines, wantDm ? danmaku : [], meta.duration),
+      ...(wantDm ? [
+        () => detectFromJumpTexts(danmaku, meta.duration),
+        () => detectFromKeywords(danmaku, meta.duration),
+      ] : []),
     ];
 
     for (const step of pipeline) {
@@ -2844,8 +2881,10 @@
           const timeline = (detailPack.chapterList || [])
             .map((c) => `${formatTime((c.timestamp || 0) / 1000)} ${c.desc || ''}`)
             .join('\n');
-          const fromMarks = detectFromCreatorMarks(`${detailPack.desc || ''}\n${timeline}`, duration);
-          if (fromMarks) chapterSegs.push(fromMarks);
+          if (cfg.useCreatorMarks === true) {
+            const fromMarks = detectFromCreatorMarks(`${detailPack.desc || ''}\n${timeline}`, duration);
+            if (fromMarks) chapterSegs.push(fromMarks);
+          }
         }
       } else {
         log('douyin chapters empty', awemeId);
@@ -2892,7 +2931,7 @@
     if (subtitleLines.length >= 5) {
       if (!stillDouyin()) return;
       const subSeg = detectFromSubtitles(subtitleLines, jumpItems, duration);
-      if (subSeg && (validSeg(subSeg, duration || 9999) || (subSeg.end > subSeg.start && subSeg.end - subSeg.start >= 8))) {
+      if (subSeg && subSeg.end - subSeg.start <= MAX_AD_SEC && (validSeg(subSeg, duration || 9999) || subSeg.end - subSeg.start >= 8)) {
         activeSeg = subSeg;
         activeSegs = [subSeg];
         for (const k of undoneKeys) skippedKeys.add(k);
@@ -2906,9 +2945,9 @@
       }
     }
 
-    // 默认：官方看点/简介/字幕。不用评论区。
+    // 官方看点 / 字幕优先；简介自标默认关
     const pipeline = [
-      () => detectFromCreatorMarks(creatorText, duration),
+      ...(cfg.useCreatorMarks === true ? [() => detectFromCreatorMarks(creatorText, duration)] : []),
       () => detectFromJumpTexts(jumpItems, duration),
       () => detectFromKeywords(
         jumpItems.filter((x) => typeof x.time === 'number'),
@@ -2919,7 +2958,7 @@
     for (const step of pipeline) {
       if (!stillDouyin()) return;
       const seg = step();
-      if (seg && (validSeg(seg, duration || 9999) || (seg.end > seg.start && seg.end - seg.start >= 8))) {
+      if (seg && seg.end - seg.start <= MAX_AD_SEC && (validSeg(seg, duration || 9999) || seg.end - seg.start >= 8)) {
         activeSeg = seg;
         activeSegs = [seg];
         for (const k of undoneKeys) skippedKeys.add(k);

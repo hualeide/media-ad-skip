@@ -113,6 +113,17 @@ export function validSeg(seg, duration) {
   return true;
 }
 
+/**
+ * 章节 / 时间轴标签是否像广告。
+ * 英文 ad 必须整词，防 «Sad Songs» / «Fall Apart» 误伤。
+ * 油猴同构拷贝在 media-ad-skip.user.js → 改这里后务必同步过去。
+ */
+export function labelLooksAd(text) {
+  const raw = String(text || '');
+  if (/(广告|广告时间|恰饭|赞助|商单|推广|软广)/.test(raw)) return true;
+  return /\bads?\b|\bsponsors?\b|\bsponsored\b|\badvert(?:s|ising|isement)?\b/i.test(raw);
+}
+
 /** 口播商单常见品牌：字幕一旦出现，广告置信远高于泛词 */
 export const AD_BRAND_KW = DEFAULT_BRAND_KW.slice();
 
@@ -305,17 +316,29 @@ export function detectFromCreatorMarks(text, duration) {
 
 export function detectFromJumpTexts(items, duration) {
   const votes = new Map();
+  const ctxScore = new Map();
   const pairs = [];
+  const seenText = new Set(); // 同文案刷屏只计一次，防剧透空降刷分
   for (const it of items) {
     const info = extractTimeFromText(it.text);
     if (!info) continue;
     const end = Math.round(info.time);
     if (end <= 0 || (duration > 0 && end >= duration - 5)) continue;
+    const text = String(it.text || '').replace(/\s+/g, '');
+    const dedupeKey = `${end}|${text}`;
+    if (seenText.has(dedupeKey)) continue;
+    seenText.add(dedupeKey);
+
     let score = info.conf;
-    if (/(空降(?!兵)|跳过|快进|广告|恰饭|指路|谢谢|感谢)/.test(it.text)) score += 0.8;
+    const adCtx = /(广告|恰饭|赞助|商单|正片|金主|软广)/.test(text);
+    const langTip = /(?:谢谢|感谢).{0,12}分|(?:\d)\s*分\s*\d{1,2}\s*(?:郎|君)/.test(text);
+    if (/(空降(?!兵)|跳过|快进|广告|恰饭|指路|谢谢|感谢)/.test(text)) {
+      score += adCtx || langTip ? 0.8 : 0.25;
+    }
     votes.set(end, (votes.get(end) || 0) + score);
+    if (adCtx || langTip) ctxScore.set(end, (ctxScore.get(end) || 0) + score);
     if (typeof it.time === 'number' && !Number.isNaN(it.time)) {
-      pairs.push({ start: it.time, end, score });
+      pairs.push({ start: it.time, end, score, adCtx: adCtx || langTip });
     }
   }
   if (!votes.size) return null;
@@ -328,6 +351,10 @@ export function detectFromJumpTexts(items, duration) {
     related.sort((a, b) => a.start - b.start);
     start = related[0].start + 2;
   }
+  // 纯「空降x:xx」无广告/郎语境：多半是剧透/跳过过程，禁止拉超长段
+  const span = bestEnd - start;
+  if ((ctxScore.get(bestEnd) || 0) < 0.9 && span > MAX_SUBTITLE_AD_SEC) return null;
+
   const seg = { start, end: bestEnd, source: 'timestamp', score: bestScore };
   return validSeg(seg, duration) ? seg : null;
 }
@@ -343,7 +370,7 @@ export function pickSponsorSegments(apiSegs, { minVotes = 3, maxLen = 420 } = {}
       source: 'sponsorblock',
       votes: s.votes ?? 0,
     }))
-    .filter((s) => s.end - s.start >= 5 && s.end - s.start <= maxLen)
+    .filter((s) => s.end - s.start >= MIN_AD_SEC && s.end - s.start <= maxLen)
     .sort((a, b) => a.start - b.start);
 }
 
