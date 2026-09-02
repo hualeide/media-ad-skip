@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.71
+// @version      1.5.72
 // @description  像绯红之王一样删除广告时间 · B站/抖音片内与信息流跳过
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -35,9 +35,9 @@
   const IS_EXT = typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
   // 扩展 / 油猴分桶，避免共用 __MAS_VER__ 互相挡住
   const MAS_VER_KEY = IS_EXT ? '__MAS_VER_EXT__' : '__MAS_VER_GM__';
-  if (window[MAS_VER_KEY] === '1.5.71') return;
-  window[MAS_VER_KEY] = '1.5.71';
-  window.__MAS_VER__ = '1.5.71';
+  if (window[MAS_VER_KEY] === '1.5.72') return;
+  window[MAS_VER_KEY] = '1.5.72';
+  window.__MAS_VER__ = '1.5.72';
 
   // 非目标站一律不跑（双重保险；扩展/油猴 match 已限定）
   if (!IS_BILI && !IS_DOUYIN) return;
@@ -67,7 +67,7 @@
     "甜秘密", "华味坊", "酸汤面叶", "劲仔", "卫龙", "盐津铺子", "三只松鼠",
     "良品铺子", "王小卤", "认养一头牛", "妙界", "赫恩", "海洋至尊", "溪木源",
     "博乐达", "蜜丝婷", "盖世小鸡", "飞智", "北通", "黑白调", "骁骑",
-    "瑞幸", "安克", "酷态科",
+    "瑞幸", "安克", "酷态科", "得物",
   ];
   /* BRAND_KW_END */
   const DEFAULTS = {
@@ -112,6 +112,7 @@
   /** @type {typeof DEFAULTS} */
   let cfg = loadCfg();
   let panelEl = null;
+  let panelDragHandlers = null;
   let statusText = '待命';
   let activeSeg = null; // { start, end, source } 当前优先段
   let activeSegs = []; // 多段（SponsorBlock）
@@ -1131,6 +1132,11 @@
   }
 
   function hidePanel() {
+    if (panelDragHandlers) {
+      window.removeEventListener('mousemove', panelDragHandlers.move);
+      window.removeEventListener('mouseup', panelDragHandlers.up);
+      panelDragHandlers = null;
+    }
     if (!panelEl) return;
     panelEl.remove();
     panelEl = null;
@@ -1364,7 +1370,7 @@
       wrong: () => { reportWrongMark(); },
     });
 
-    // 简易拖拽
+    // 简易拖拽（window 监听挂引用，hidePanel 时移除，防反复开关堆积）
     const head = panelEl.querySelector('.mas-head');
     let dragging = false;
     let ox = 0;
@@ -1376,13 +1382,17 @@
       oy = e.clientY - r.top;
       e.preventDefault();
     });
-    window.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      panelEl.style.left = `${Math.max(0, e.clientX - ox)}px`;
-      panelEl.style.top = `${Math.max(0, e.clientY - oy)}px`;
-      panelEl.style.right = 'auto';
-    });
-    window.addEventListener('mouseup', () => { dragging = false; });
+    panelDragHandlers = {
+      move: (e) => {
+        if (!dragging || !panelEl) return;
+        panelEl.style.left = `${Math.max(0, e.clientX - ox)}px`;
+        panelEl.style.top = `${Math.max(0, e.clientY - oy)}px`;
+        panelEl.style.right = 'auto';
+      },
+      up: () => { dragging = false; },
+    };
+    window.addEventListener('mousemove', panelDragHandlers.move);
+    window.addEventListener('mouseup', panelDragHandlers.up);
   }
 
   function showSkipToast(seg) {
@@ -1409,6 +1419,7 @@
   /** 本片永久拒绝的段 key：chrome.storage.local / localStorage，按视频 ID 分桶 */
   let rejectSegMap = null;
   let rejectMapLoading = false;
+  let rejectMapLoadingAt = 0;
 
   function writeRejectMap(map) {
     rejectSegMap = map;
@@ -1427,10 +1438,18 @@
       return;
     }
     if (rejectMapLoading) {
+      // storage 永不回调时兜底空表，防 80ms 无限重试
+      if (Date.now() - rejectMapLoadingAt > 4000) {
+        rejectSegMap = {};
+        rejectMapLoading = false;
+        cb?.(rejectSegMap);
+        return;
+      }
       setTimeout(() => ensureRejectMap(cb), 80);
       return;
     }
     rejectMapLoading = true;
+    rejectMapLoadingAt = Date.now();
     const finish = (raw) => {
       rejectSegMap = raw && typeof raw === 'object' ? raw : {};
       rejectMapLoading = false;
@@ -2296,7 +2315,8 @@
         return xo.call(this, method, url, ...rest);
       };
       XMLHttpRequest.prototype.send = function (...args) {
-        if (this.__masFeed) {
+        if (this.__masFeed && !this.__masFeedHooked) {
+          this.__masFeedHooked = true; // 同一 XHR 复用 send 时只挂一次
           this.addEventListener('load', () => {
             try {
               if (feedResponseTooLarge(this)) return;
