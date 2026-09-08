@@ -14,6 +14,7 @@ import {
   CONF_COLON_JUMP,
   CONF_COLON_WEAK,
   MAX_SUBTITLE_AD_SEC,
+  MAX_BRAND_AD_SEC,
 } from './config.mjs';
 
 export const ZH_NUM = {
@@ -137,8 +138,21 @@ export const AD_CONTENT_KW = [
 ];
 
 /**
+ * 仅用于品牌段向后延伸（不参与初次命中）。
+ * 覆盖「产品功能 / 大促收尾」口播，避免品牌词只出现两次却被 CLUSTER_GAP 截成 12s。
+ */
+export const AD_PITCH_RE = /(大促|薅羊毛|入手就是|售后|质保|礼盒|热敷|按摩椅|艾绒|马杀鸡|代写贺卡|自用送人|全年底价|养护Buff|驱寒除湿|银离子)/;
+
+function lineLooksAdPitch(text, brands, matched) {
+  if (brands?.length || matched?.length) return true;
+  const t = String(text || '');
+  return AD_CTX_RE.test(t) || AD_PITCH_RE.test(t);
+}
+
+/**
  * 字幕关键词/品牌聚类成广告段。
  * 品牌须有广告语境或多次命中；按间隙拆簇，避免早段误命中并入真广告后早跳。
+ * 品牌命中后再沿口播话术向前延伸，并并入同窗内其它品牌句。
  */
 export function detectFromSubtitles(lines, danmaku, duration) {
   if (!lines || lines.length < 5) return null;
@@ -210,13 +224,49 @@ export function detectFromSubtitles(lines, danmaku, duration) {
     return { weight: bestW, start: list[bestI].from, end: list[bestJ].to };
   }
 
-  const clampSub = (seg) => {
+  const clampSub = (seg, maxLen = MAX_SUBTITLE_AD_SEC, keepStart = false) => {
     if (!seg || seg.end <= seg.start) return null;
-    if (seg.end - seg.start > MAX_SUBTITLE_AD_SEC) {
-      seg.start = Math.max(0, seg.end - MAX_SUBTITLE_AD_SEC);
+    if (seg.end - seg.start > maxLen) {
+      if (keepStart) seg.end = seg.start + maxLen;
+      else seg.start = Math.max(0, seg.end - maxLen);
     }
     return validSeg(seg, duration) ? seg : null;
   };
+
+  /** 品牌锚点：沿口播话术前后延伸（非话术句可越过，但间隙 > CLUSTER_GAP 则断） */
+  function expandBrandSpan(seedStart, seedEnd) {
+    let start = seedStart;
+    let end = seedEnd;
+    const pitchAt = (line) => {
+      const text = String(line.content || '');
+      const lower = text.toLowerCase();
+      const brands = AD_BRAND_KW.filter((k) => text.includes(k) || lower.includes(k.toLowerCase()));
+      const matched = AD_CONTENT_KW.filter((k) => lower.includes(k.toLowerCase()) || text.includes(k));
+      return lineLooksAdPitch(text, brands, matched);
+    };
+
+    let cursor = seedEnd;
+    for (const line of lines) {
+      if (line.from < seedStart - 0.5) continue;
+      if (line.from > seedStart + MAX_BRAND_AD_SEC) break;
+      if (!pitchAt(line)) continue;
+      if (line.from - cursor > CLUSTER_GAP) break;
+      end = Math.max(end, line.to);
+      cursor = line.to;
+    }
+
+    cursor = seedStart;
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      const line = lines[i];
+      if (line.from >= seedStart) continue;
+      if (line.from < seedStart - MAX_BRAND_AD_SEC) break;
+      if (!pitchAt(line)) continue;
+      if (cursor - line.to > CLUSTER_GAP) break;
+      start = Math.min(start, line.from);
+      cursor = line.from;
+    }
+    return { start, end };
+  }
 
   // 有品牌时只簇品牌句，避免 CTA/早段闲聊把窗拉太早
   const pool = hasBrand && brandHits.length ? brandHits : hits;
@@ -234,12 +284,18 @@ export function detectFromSubtitles(lines, danmaku, duration) {
   if (best && best.end > best.start) {
     let start = Math.max(0, best.start - (hasBrand ? PAD_START : 0));
     let end = best.end + (hasBrand ? PAD_END : 0);
+    if (hasBrand) {
+      const expanded = expandBrandSpan(best.start, best.end);
+      start = Math.max(0, expanded.start - PAD_START);
+      // 口播链已到句尾时只轻垫，避免垫进正片（如「终于下班了」）
+      end = expanded.end > best.end ? expanded.end + 2 : expanded.end + PAD_END;
+    }
     if (duration > 0) end = Math.min(duration - SEG_TAIL_GUARD_SEC - 0.1, end);
     return clampSub({
       start,
       end,
       source: hasBrand ? 'subtitle-brand' : 'subtitle',
-    });
+    }, hasBrand ? MAX_BRAND_AD_SEC : MAX_SUBTITLE_AD_SEC, hasBrand);
   }
 
   const strong = hits.find((h) => (hasBrand && h.brands.length) || h.matched.length >= 2);
@@ -255,43 +311,52 @@ export function detectFromSubtitles(lines, danmaku, duration) {
     }
     let end = strong.to;
     if (hasBrand && strong.brands.length) {
-      start = Math.max(0, strong.from - PAD_START);
-      end = duration > 0
-        ? Math.min(duration - SEG_TAIL_GUARD_SEC - 0.1, strong.to + PAD_END)
-        : strong.to + PAD_END;
+      const expanded = expandBrandSpan(strong.from, strong.to);
+      start = Math.max(0, expanded.start - PAD_START);
+      end = expanded.end > strong.to ? expanded.end + 2 : expanded.end + PAD_END;
+      if (duration > 0) end = Math.min(duration - SEG_TAIL_GUARD_SEC - 0.1, end);
+      return clampSub({
+        start,
+        end,
+        source: 'subtitle-brand',
+      }, MAX_BRAND_AD_SEC, true);
     }
     return clampSub({
       start,
       end,
-      source: (hasBrand && strong.brands.length) ? 'subtitle-brand' : 'subtitle-cta',
+      source: 'subtitle-cta',
     });
   }
   return null;
 }
 
-export function detectFromCreatorMarks(text, duration) {
+export function detectFromCreatorMarks(text, duration, opts) {
   if (!text) return null;
   const raw = String(text);
+  // timelineOnly：只认结构化时间轴（评论用），不跑单行松散正则
+  const timelineOnly = !!opts?.timelineOnly;
   const AD = /(广告|恰饭|赞助|商单|推广|软广|合作方|金主|片头广告)/i;
   const OK = /(正片|正文|开始|开讲|上车|回归)/i;
 
-  let m = raw.match(/(?:广告|恰饭|赞助|商单|推广|软广)[^0-9]{0,12}(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})/i)
-    || raw.match(/(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})[^\n]{0,12}(?:广告|恰饭|赞助|商单|推广)/i);
-  if (m) {
-    const start = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    const end = parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
-    if (end > start && end - start >= 8) return { start, end, source: 'creator-range' };
-  }
+  if (!timelineOnly) {
+    let m = raw.match(/(?:广告|恰饭|赞助|商单|推广|软广)[^0-9]{0,12}(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})/i)
+      || raw.match(/(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})[^\n]{0,12}(?:广告|恰饭|赞助|商单|推广)/i);
+    if (m) {
+      const start = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      const end = parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
+      if (end > start && end - start >= 8) return { start, end, source: 'creator-range' };
+    }
 
-  m = raw.match(/(?:广告|恰饭|赞助|商单)[^0-9]{0,8}(?:到|至|结束(?:于|在)?|完(?:于|在)?)[^0-9]{0,6}(\d{1,2})[:：](\d{2})/i);
-  if (m) {
-    const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    if (end >= 8) return { start: 0.1, end, source: 'creator-end' };
-  }
-  m = raw.match(/(?:正片|正文)\s*(?:从|自|开始于?|起于?|开始)\s*(\d{1,2})[:：](\d{2})/i);
-  if (m) {
-    const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    if (end >= 8) return { start: 0.1, end, source: 'creator-end' };
+    m = raw.match(/(?:广告|恰饭|赞助|商单)[^0-9]{0,8}(?:到|至|结束(?:于|在)?|完(?:于|在)?)[^0-9]{0,6}(\d{1,2})[:：](\d{2})/i);
+    if (m) {
+      const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      if (end >= 8) return { start: 0.1, end, source: 'creator-end' };
+    }
+    m = raw.match(/(?:正片|正文)\s*(?:从|自|开始于?|起于?|开始)\s*(\d{1,2})[:：](\d{2})/i);
+    if (m) {
+      const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      if (end >= 8) return { start: 0.1, end, source: 'creator-end' };
+    }
   }
 
   const entries = [];
@@ -302,9 +367,22 @@ export function detectFromCreatorMarks(text, duration) {
       label: it[3].trim(),
     });
   }
+  const END_MARK = /(跳过广告|广告结束|广告完了?|正片|回归正片|正片开始)/;
   for (let i = 0; i < entries.length; i++) {
     const label = entries[i].label;
-    if (!AD.test(label)) continue;
+    const isEndMark = END_MARK.test(label);
+    if (!isEndMark && !AD.test(label) && !labelLooksAd(label)) continue;
+    // 「01:51 跳过广告」：T 是广告结束点
+    if (isEndMark) {
+      const end = entries[i].start;
+      const prev = entries[i - 1];
+      const prevIsAdStart = prev && !END_MARK.test(prev.label) && (AD.test(prev.label) || labelLooksAd(prev.label));
+      const start = prevIsAdStart ? prev.start : Math.max(0, end - 60);
+      if (end - start >= 8 && end - start <= MAX_AD_SEC) {
+        return { start, end, source: 'creator-timeline', startEstimated: !prevIsAdStart };
+      }
+      continue;
+    }
     let end = i + 1 < entries.length ? entries[i + 1].start : Math.min(duration || entries[i].start + 90, entries[i].start + 90);
     if (i + 1 < entries.length && OK.test(entries[i + 1].label)) end = entries[i + 1].start;
     if (end - entries[i].start >= 8) {

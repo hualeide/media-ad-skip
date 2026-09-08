@@ -46,14 +46,14 @@ B站 + 抖音**网页版**广告时间跳过工具：MV3 扩展 + Tampermonkey �
 实际消费顺序（见 `runBilibili` / `analyze`）：
 
 1. **SponsorBlock 优先短路**（有 SB 段则直接采用，不进后面 pipeline）
-2. pipeline：`chapter(view_points)` → `subtitle(字幕品牌/CTA)`  
+2. pipeline：`chapter(view_points)` → `comment-timeline(置顶/UP/热评时间轴)` → `subtitle(字幕品牌/CTA)`  
    （简介自标 / 弹幕 **默认关闭**；选项可开 `useCreatorMarks` / `useDanmakuDetect`）
 
 命中后 `doSkip`；用户撤销后本片禁再自动跳同段（`undoneKeys`）。
 
 **已知误伤（已修，回归勿回退）：**
 
-- `subtitle-brand`：早段品牌铺垫 + 90s 滑窗 → 跳太早。现：间隙拆簇、轻 padding、最长 ~75s。
+- `subtitle-brand`：早段品牌铺垫 + 90s 滑窗 → 跳太早。现：间隙拆簇、轻 padding；品牌段再按口播话术前后延伸（`MAX_BRAND_AD_SEC`~90），防只跳品牌首句（如 BV13 妙界 6:07→7:30）。
 - `chapter`：`includes('ad')` 误伤歌名 **Sad …**（BV1J4un6mEV1 跳了 18:47→24:53）。现：`labelLooksAd()`，英文 `ad` **整词**。
 
 ### 抖音

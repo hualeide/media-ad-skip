@@ -30,6 +30,8 @@ export const CONF_COLON_JUMP = 1.25;
 export const CONF_COLON_WEAK = 0.35;
 /** 字幕估段最长（防游戏口播误拉超长段；过宽会早跳进正片） */
 export const MAX_SUBTITLE_AD_SEC = 75;
+/** 品牌口播可再拉长一点（单品牌贯穿整段商单，常 >75s） */
+export const MAX_BRAND_AD_SEC = 90;
 
 /** 防崩：响应体体积上限（字符） */
 export const MAX_FEED_BODY = 350_000;

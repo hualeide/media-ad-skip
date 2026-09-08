@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Media Ad Skip (B站 + 抖音)
 // @namespace    https://github.com/hualeide/media-ad-skip
-// @version      1.5.72
+// @version      1.5.74
 // @description  像绯红之王一样删除广告时间 · B站/抖音片内与信息流跳过
 // @author       media-ad-skip
 // @homepageURL  https://github.com/hualeide/media-ad-skip
@@ -35,9 +35,9 @@
   const IS_EXT = typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
   // 扩展 / 油猴分桶，避免共用 __MAS_VER__ 互相挡住
   const MAS_VER_KEY = IS_EXT ? '__MAS_VER_EXT__' : '__MAS_VER_GM__';
-  if (window[MAS_VER_KEY] === '1.5.72') return;
-  window[MAS_VER_KEY] = '1.5.72';
-  window.__MAS_VER__ = '1.5.72';
+  if (window[MAS_VER_KEY] === '1.5.74') return;
+  window[MAS_VER_KEY] = '1.5.74';
+  window.__MAS_VER__ = '1.5.74';
 
   // 非目标站一律不跑（双重保险；扩展/油猴 match 已限定）
   if (!IS_BILI && !IS_DOUYIN) return;
@@ -1685,6 +1685,7 @@
     return {
       bvid,
       cid: page?.cid || d.cid,
+      aid: d.aid || null,
       mid: d.owner?.mid ?? d.owner_mid ?? null,
       desc: d.desc || '',
       duration: page?.duration || d.duration || 0,
@@ -1842,8 +1843,9 @@
 
   function detectFromChapters(viewPoints) {
     for (const ch of viewPoints || []) {
-      if (labelLooksAd(ch.content)) {
-        return { start: ch.from, end: ch.to, source: 'chapter' };
+      // type 1 = UP主官方报备的广告时段（播放器左上角「广告」标），最高精度
+      if (ch.type === 1 || labelLooksAd(ch.content)) {
+        return { start: ch.from, end: ch.to, source: ch.type === 1 ? 'chapter-official-ad' : 'chapter' };
       }
     }
     return null;
@@ -1861,36 +1863,40 @@
    *  恰饭到 2:15
    *  【赞助】1:00~2:00
    */
-  function detectFromCreatorMarks(text, duration) {
+  function detectFromCreatorMarks(text, duration, opts) {
     if (!text) return null;
     const raw = String(text);
+    // timelineOnly：只认结构化时间轴列表（评论用），不跑单行松散正则
+    const timelineOnly = !!opts?.timelineOnly;
     const AD = /(广告|恰饭|赞助|商单|推广|软广|合作方|金主|片头广告)/i;
     const OK = /(正片|正文|开始|开讲|上车|回归|谢谢收看)/i;
 
-    // 区间：广告 1:00-2:30 / 1:00~2:30 恰饭 / 【广告】0:00—1:20
-    let m = raw.match(/(?:广告|恰饭|赞助|商单|推广|软广)[^0-9]{0,12}(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})/i)
-      || raw.match(/(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})[^\n]{0,12}(?:广告|恰饭|赞助|商单|推广)/i);
-    if (m) {
-      const start = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-      const end = parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
-      const seg = { start, end, source: 'creator-range' };
-      if (end - start > MAX_AD_SEC) return null;
-      if (validSeg(seg, duration) || (end > start && end - start >= 8)) return seg;
-    }
+    if (!timelineOnly) {
+      // 区间：广告 1:00-2:30 / 1:00~2:30 恰饭 / 【广告】0:00—1:20
+      let m = raw.match(/(?:广告|恰饭|赞助|商单|推广|软广)[^0-9]{0,12}(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})/i)
+        || raw.match(/(\d{1,2})[:：](\d{2})\s*[-~—～至到]+\s*(\d{1,2})[:：](\d{2})[^\n]{0,12}(?:广告|恰饭|赞助|商单|推广)/i);
+      if (m) {
+        const start = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        const end = parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
+        const seg = { start, end, source: 'creator-range' };
+        if (end - start > MAX_AD_SEC) return null;
+        if (validSeg(seg, duration) || (end > start && end - start >= 8)) return seg;
+      }
 
-    // 结束点：恰饭到 2:15 / 广告结束 1:30 → 片头到该点（勿臆造中插）
-    m = raw.match(/(?:广告|恰饭|赞助|商单)[^0-9]{0,8}(?:到|至|结束(?:于|在)?|完(?:于|在)?)[^0-9]{0,6}(\d{1,2})[:：](\d{2})/i);
-    if (m) {
-      const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-      const seg = { start: 0.1, end, source: 'creator-end' };
-      if (end >= 8 && end <= MAX_AD_SEC && end < (duration || 99999) - 3) return seg;
-    }
-    // 正片从 2:00 / 正文开始于 1:30（连接词必填，防评论误伤）
-    m = raw.match(/(?:正片|正文)\s*(?:从|自|开始于?|起于?|开始)\s*(\d{1,2})[:：](\d{2})/i);
-    if (m) {
-      const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-      const seg = { start: 0.1, end, source: 'creator-end' };
-      if (end >= 8 && end <= MAX_AD_SEC && end < (duration || 99999) - 3) return seg;
+      // 结束点：恰饭到 2:15 / 广告结束 1:30 → 片头到该点（勿臆造中插）
+      m = raw.match(/(?:广告|恰饭|赞助|商单)[^0-9]{0,8}(?:到|至|结束(?:于|在)?|完(?:于|在)?)[^0-9]{0,6}(\d{1,2})[:：](\d{2})/i);
+      if (m) {
+        const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        const seg = { start: 0.1, end, source: 'creator-end' };
+        if (end >= 8 && end <= MAX_AD_SEC && end < (duration || 99999) - 3) return seg;
+      }
+      // 正片从 2:00 / 正文开始于 1:30（连接词必填，防评论误伤）
+      m = raw.match(/(?:正片|正文)\s*(?:从|自|开始于?|起于?|开始)\s*(\d{1,2})[:：](\d{2})/i);
+      if (m) {
+        const end = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        const seg = { start: 0.1, end, source: 'creator-end' };
+        if (end >= 8 && end <= MAX_AD_SEC && end < (duration || 99999) - 3) return seg;
+      }
     }
 
     // 时间轴列表
@@ -1916,10 +1922,25 @@
       }
     }
 
+    const END_MARK = /(跳过广告|广告结束|广告完了?|正片|回归正片|正片开始)/;
     for (let i = 0; i < entries.length; i++) {
       const label = entries[i].label;
-      const isAd = AD.test(label) || labelLooksAd(label);
-      if (!isAd && !(i === 0 && AD.test(raw.slice(0, 80)) && entries[i].start <= 5)) continue;
+      const isEndMark = END_MARK.test(label);
+      const isAd = !isEndMark && (AD.test(label) || labelLooksAd(label));
+      // 评论时间轴：标签必须自带广告词，不吃「首行兜底」
+      if (!isAd && !isEndMark && (timelineOnly || !(i === 0 && AD.test(raw.slice(0, 80)) && entries[i].start <= 5))) continue;
+
+      // 「01:51 跳过广告」：T 是广告结束点，不是起点
+      if (isEndMark) {
+        const end = entries[i].start;
+        const prev = entries[i - 1];
+        const prevIsAdStart = prev && !END_MARK.test(prev.label) && (AD.test(prev.label) || labelLooksAd(prev.label));
+        const start = prevIsAdStart ? prev.start : Math.max(0, end - 60);
+        const seg = { start, end, source: 'creator-timeline', startEstimated: !prevIsAdStart };
+        if (end - start > MAX_AD_SEC) continue;
+        if (end > start && end - start >= 8) return seg;
+        continue;
+      }
 
       let start = entries[i].start;
       let end = entries[i].end;
@@ -1956,6 +1977,37 @@
     });
   }
 
+  /**
+   * 置顶/UP自评/热评里的时间轴（「01:51 跳过广告」式）。
+   * 高精度：只跑结构化时间轴，不跑松散正则；不受 useCreatorMarks 开关影响。
+   */
+  async function biliFetchTimelineComment(aid, ownerMid) {
+    if (!aid) return '';
+    try {
+      const res = await fetch(`https://api.bilibili.com/x/v2/reply/main?type=1&oid=${aid}&mode=3&ps=10`);
+      const json = await res.json();
+      const replies = [
+        ...(json?.data?.top_replies || []),
+        ...(json?.data?.replies || []),
+      ];
+      const picked = [];
+      for (const r of replies.slice(0, 10)) {
+        const msg = String(r?.content?.message || '');
+        if (!msg || msg.length > 600) continue;
+        const isUp = ownerMid && String(r?.member?.mid) === String(ownerMid);
+        const hot = (r?.like || 0) >= 20;
+        if (!isUp && !hot && !r?.reply_control?.is_top && !r?.is_top) continue;
+        if (!/\d{1,2}[:：]\d{2}/.test(msg)) continue;
+        if (!/(广告|恰饭|赞助|商单|正片|跳过)/.test(msg)) continue;
+        picked.push(msg);
+      }
+      return picked.join('\n');
+    } catch (e) {
+      log('timeline comment fail', e);
+      return '';
+    }
+  }
+
   async function fetchSponsorBlock(bvid) {
     try {
       if (cfg.useSponsorBlock === false) return [];
@@ -1980,8 +2032,9 @@
   }
 
   /**
-   * B站主流程：SB → 章节 → 字幕；（可选）简介自标 / 弹幕。
+   * B站主流程：SB → 章节 → 评论时间轴 → 字幕；（可选）简介自标 / 弹幕。
    * 简介与弹幕默认关：多数视频不写恰饭轴，弹幕则易剧透/吐槽误伤。
+   * 评论时间轴（置顶/UP/热评的 mm:ss 列表）高精度，始终启用。
    * 全程用 analyzeGen：换片后旧请求回来必须丢弃，否则会串台误跳。
    */
   async function runBilibili(forceKey) {
@@ -2022,14 +2075,15 @@
     applyRejectsToSession(meta.bvid);
 
     const wantDm = cfg.useDanmakuDetect === true;
-    const [danmaku, player, sbSegs] = await Promise.all([
+    const [danmaku, player, sbSegs, timelineComment] = await Promise.all([
       wantDm ? biliFetchDanmaku(meta.cid, meta.duration) : Promise.resolve([]),
       biliFetchPlayer(meta.bvid, meta.cid),
       fetchSponsorBlock(meta.bvid),
+      biliFetchTimelineComment(meta.aid, meta.mid),
     ]);
     if (!analysisStillCurrent(gen, meta.bvid)) return;
     const { viewPoints, subtitles } = player;
-    log('bili', meta.bvid, 'dm', danmaku.length, 'sb', sbSegs.length, 'dmDetect', wantDm);
+    log('bili', meta.bvid, 'dm', danmaku.length, 'sb', sbSegs.length, 'dmDetect', wantDm, 'tl', !!timelineComment);
 
     if (sbSegs.length) {
       activeSegs = sbSegs;
@@ -2049,6 +2103,8 @@
     const pipeline = [
       () => detectFromChapters(viewPoints),
       ...(cfg.useCreatorMarks === true ? [() => detectFromDesc(meta.desc, meta.duration)] : []),
+      // 置顶/UP/热评时间轴：高精度，独立开关外
+      () => (timelineComment ? detectFromCreatorMarks(timelineComment, meta.duration, { timelineOnly: true }) : null),
       () => detectFromSubtitles(subtitleLines, wantDm ? danmaku : [], meta.duration),
       ...(wantDm ? [
         () => detectFromJumpTexts(danmaku, meta.duration),
@@ -2057,8 +2113,22 @@
     ];
 
     for (const step of pipeline) {
-      const seg = await step();
+      let seg = await step();
       if (!analysisStillCurrent(gen, meta.bvid)) return;
+      // 结束点时间轴的起点是估的：用「恭喜接广」弹幕校准（此时才按需拉弹幕）
+      if (seg?.startEstimated) {
+        try {
+          const dm = danmaku.length ? danmaku : await biliFetchDanmaku(meta.cid, meta.duration);
+          if (!analysisStillCurrent(gen, meta.bvid)) return;
+          const hits = dm
+            .filter((d) => d.time >= seg.end - 180 && d.time < seg.end
+              && /(恭喜接广|恭喜.{0,4}恰饭|接到广|接广了)/.test(d.text || ''))
+            .sort((a, b) => a.time - b.time);
+          if (hits.length) {
+            seg = { ...seg, start: Math.max(0, hits[0].time - 5), startEstimated: false };
+          }
+        } catch { /* ignore */ }
+      }
       if (seg && validSeg(seg, meta.duration)) {
         activeSeg = seg;
         activeSegs = [seg];

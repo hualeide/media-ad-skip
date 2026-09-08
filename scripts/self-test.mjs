@@ -102,6 +102,31 @@ if (!gapSeg || gapSeg.source !== 'subtitle-brand' || gapSeg.start < 90 || gapSeg
 if (gapSeg.end - gapSeg.start > 75) throw new Error(`gap too wide ${JSON.stringify(gapSeg)}`);
 console.log('OK gap-tight subtitle-brand', gapSeg);
 
+// BV13qbK6VE8r：妙界口播品牌词稀疏（~6:09 与 ~6:55），旧逻辑只跳到 6:19；应拉到约 7:30
+const miaojieLines = [
+  ...filler(5),
+  { from: 365.46, to: 367.76, content: '是不是感觉最近我都不连跪了' },
+  { from: 367.76, to: 369.64, content: '那得多亏这张武器神卡' },
+  { from: 369.64, to: 371.43, content: '妙界膝盖按摩椅' },
+  { from: 371.43, to: 374.13, content: '一套热敷加按摩掩护连招下来' },
+  { from: 381.579, to: 383.619, content: '这会儿正赶上九九大促' },
+  { from: 383.619, to: 385.38, content: '大家也赶紧去薅羊毛' },
+  { from: 395.68, to: 397.1, content: '它有大面积热敷' },
+  { from: 415.72, to: 417.98, content: '都得及时整上妙界养护Buff' },
+  { from: 437.2, to: 439.94, content: '现在九九大促入手就是全年底价' },
+  { from: 439.94, to: 441.42, content: '售后质保全靠谱' },
+  { from: 444.46, to: 448.62, content: '高颜值礼盒自用送人都包文的' },
+  { from: 452.7, to: 453.78, content: '终于下班了' },
+];
+const miaojieSeg = detectFromSubtitles(miaojieLines, [], 492);
+if (!miaojieSeg || miaojieSeg.source !== 'subtitle-brand') {
+  throw new Error(`miaojie miss ${JSON.stringify(miaojieSeg)}`);
+}
+if (miaojieSeg.start > 370 || miaojieSeg.end < 448 || miaojieSeg.end > 452) {
+  throw new Error(`miaojie range ${JSON.stringify(miaojieSeg)}`);
+}
+console.log('OK miaojie brand extend', miaojieSeg);
+
 // «Sad Songs» 章节不得因含 ad 子串误跳（须用共享 labelLooksAd，禁影子副本）
 if (labelLooksAd('Good Things Fall Apart vs. Sad Songs')) {
   throw new Error('false chapter ad on Sad Songs');
@@ -145,6 +170,43 @@ console.log('OK user.js time extractor parity');
 }
 console.log('OK undo survives re-analyze');
 
+// 官方报备广告段（view_points type=1）无条件命中
+{
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const user = fs.readFileSync(path.join(root, 'media-ad-skip.user.js'), 'utf8');
+  if (!/ch\.type === 1/.test(user) || !/chapter-official-ad/.test(user)) {
+    throw new Error('user.js missing official ad chapter (type=1) detection');
+  }
+}
+console.log('OK official ad chapter type=1');
+
+// 评论时间轴：「01:51 跳过广告」应命中；松散「正片从 2:00」在 timelineOnly 下不得命中
+import { detectFromCreatorMarks } from '../src/detect-core.mjs';
+{
+  const tl = detectFromCreatorMarks('01:51\n跳过广告', 278, { timelineOnly: true });
+  if (!tl || tl.end !== 111 || tl.source !== 'creator-timeline') {
+    throw new Error(`comment timeline miss ${JSON.stringify(tl)}`);
+  }
+  const loose = detectFromCreatorMarks('正片从 2:00 开始', 300, { timelineOnly: true });
+  if (loose) throw new Error(`timelineOnly loose hit ${JSON.stringify(loose)}`);
+  const looseOk = detectFromCreatorMarks('正片从 2:00 开始', 300);
+  if (!looseOk) throw new Error('non-timelineOnly should still catch 正片从');
+}
+console.log('OK comment timelineOnly');
+
+// 结束点语义：「01:51 跳过广告」→ 段 [51,111]，startEstimated；前面有起点标记则用前值
+{
+  const endSeg = detectFromCreatorMarks('01:51\n跳过广告', 278, { timelineOnly: true });
+  if (!endSeg || endSeg.start !== 51 || endSeg.end !== 111 || !endSeg.startEstimated) {
+    throw new Error(`end-marker seg wrong ${JSON.stringify(endSeg)}`);
+  }
+  const pair = detectFromCreatorMarks('00:59 广告\n01:51 跳过广告', 278, { timelineOnly: true });
+  if (!pair || pair.start !== 59 || pair.end !== 111 || pair.startEstimated) {
+    throw new Error(`pair seg wrong ${JSON.stringify(pair)}`);
+  }
+}
+console.log('OK end-marker semantics');
+
 const weakLines = [
   ...filler(5),
   { from: 50, to: 52, content: '我今天购买了一本书' },
@@ -158,4 +220,4 @@ if (isBlockedUp(1, ['491780876'])) throw new Error('mid block fp');
 if (isBlockedUp(null, ['1'])) throw new Error('mid null');
 console.log('OK mid blacklist');
 
-console.log(`全部通过 ${pass + 10}`);
+console.log(`全部通过 ${pass + 11}`);
