@@ -2,6 +2,8 @@
 const REPO = 'hualeide/media-ad-skip';
 const UPDATE_ALARM = 'mas-update-check';
 const CHECK_HOURS = 24;
+// 与 src/config.mjs 的 MAX_BG_FETCH 对齐
+const MAX_BG_FETCH = 800_000;
 
 function parseVer(v) {
   return String(v || '')
@@ -231,7 +233,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       const res = await fetch(msg.url, { credentials: 'omit' });
       const text = await res.text();
-if (text.length > 800000) {
+      if (text.length > MAX_BG_FETCH) {
         sendResponse({ ok: false, error: 'response too large' });
         return;
       }
