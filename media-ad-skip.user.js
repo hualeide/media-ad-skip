@@ -357,6 +357,7 @@
       document.documentElement.appendChild(toast);
     }
     const range = `${formatTime(seg.start)} → ${formatTime(seg.end)}`;
+    const label = seg.label ? (' · ' + seg.label) : '';
     const withActions = !!opts.withActions;
     toast.innerHTML = `<div class="mas-toast-title">即将跳过广告</div>
       <div class="mas-toast-sub"></div>
@@ -364,15 +365,7 @@
         <button type="button" data-mas-act="go" class="mas-btn mas-btn-primary">立即跳过</button>
         <button type="button" data-mas-act="no" class="mas-btn mas-btn-ghost">忽略</button>
       </div>` : ''}`;
-    const sub = toast.querySelector('.mas-toast-sub');
-    if (sub) {
-      sub.textContent = range;
-      if (seg.label) {
-        const span = document.createElement('span');
-        span.textContent = ` · ${String(seg.label)}`;
-        sub.appendChild(span);
-      }
-    }
+    toast.querySelector('.mas-toast-sub').textContent = range + label;
     revealToast(toast);
     if (withActions) {
       bindMasActions(toast, {
